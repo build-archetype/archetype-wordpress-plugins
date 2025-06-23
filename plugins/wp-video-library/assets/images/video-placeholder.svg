@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="225" viewBox="0 0 400 225">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5f5f5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e0e0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="400" height="225" fill="url(#bg)" />
+  
+  <!-- Play button circle -->
+  <circle cx="200" cy="112.5" r="40" fill="rgba(0,0,0,0.7)" />
+  
+  <!-- Play triangle -->
+  <path d="M185 95 L185 130 L220 112.5 Z" fill="white" />
+  
+  <!-- Video icon in bottom right -->
+  <g transform="translate(340, 180)">
+    <rect width="50" height="35" rx="3" fill="rgba(0,0,0,0.8)" />
+    <rect x="5" y="5" width="40" height="25" rx="2" fill="white" />
+    <circle cx="15" cy="15" r="3" fill="#ccc" />
+    <rect x="22" y="12" width="15" height="2" fill="#ccc" />
+    <rect x="22" y="16" width="10" height="2" fill="#ccc" />
+  </g>
+  
+  <!-- Text -->
+  <text x="200" y="175" text-anchor="middle" fill="#999" font-family="Arial, sans-serif" font-size="14">Video Thumbnail</text>
+</svg> 

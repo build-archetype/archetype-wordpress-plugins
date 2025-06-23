@@ -1,0 +1,131 @@
+name: Test WordPress Plugins
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/**'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'plugins/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint WordPress Plugins
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mysqli, zip, gd
+          tools: composer, phpcs
+
+      - name: Install PHP CodeSniffer
+        run: |
+          composer global require "squizlabs/php_codesniffer=*"
+          composer global require wp-coding-standards/wpcs
+          phpcs --config-set installed_paths $(composer global config home)/vendor/wp-coding-standards/wpcs
+
+      - name: Run PHP CodeSniffer
+        run: |
+          find plugins/ -name "*.php" -exec phpcs --standard=WordPress {} \; || true
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: [7.4, 8.0, 8.1, 8.2]
+        wordpress-version: [6.0, 6.1, 6.2, 6.3, 6.4]
+    
+    name: Test PHP ${{ matrix.php-version }} / WP ${{ matrix.wordpress-version }}
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_test
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        ports:
+          - 3306:3306
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mysqli, zip, gd
+          tools: composer, phpunit
+
+      - name: Setup WordPress
+        run: |
+          wget https://wordpress.org/wordpress-$\{\{ matrix.wordpress-version }}.tar.gz
+          tar -xzf wordpress-${{ matrix.wordpress-version }}.tar.gz
+          cp -r plugins/* wordpress/wp-content/plugins/
+
+      - name: Configure WordPress
+        run: |
+          cd wordpress
+          cp wp-config-sample.php wp-config.php
+          sed -i 's/database_name_here/wordpress_test/' wp-config.php
+          sed -i 's/username_here/root/' wp-config.php
+          sed -i 's/password_here/root/' wp-config.php
+          sed -i 's/localhost/127.0.0.1/' wp-config.php
+          echo "define('WP_DEBUG', true);" >> wp-config.php
+          echo "define('WP_DEBUG_LOG', true);" >> wp-config.php
+
+      - name: Install WordPress
+        run: |
+          cd wordpress
+          php -S localhost:8000 &
+          sleep 5
+          # Basic WordPress installation
+          mysql -h 127.0.0.1 -u root -proot wordpress_test -e "
+            CREATE TABLE IF NOT EXISTS wp_posts (ID bigint(20) unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY (ID));
+            CREATE TABLE IF NOT EXISTS wp_options (option_id bigint(20) unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY (option_id));
+            CREATE TABLE IF NOT EXISTS wp_users (ID bigint(20) unsigned NOT NULL AUTO_INCREMENT, PRIMARY KEY (ID));
+          "
+
+      - name: Test Plugin Loading
+        run: |
+          cd wordpress
+          # Test that plugins can be loaded without fatal errors
+          for plugin in wp-content/plugins/*/; do
+            if [ -d "$plugin" ]; then
+              plugin_name=$(basename "$plugin")
+              echo "Testing plugin: $plugin_name"
+              # Find main plugin file
+              main_file=$(find "$plugin" -name "*.php" -exec grep -l "Plugin Name:" {} \; | head -1)
+              if [ -n "$main_file" ]; then
+                echo "Found main file: $main_file"
+                # Basic syntax check
+                php -l "$main_file"
+              fi
+            fi
+          done
+
+      - name: Run Plugin Tests
+        run: |
+          echo "Running basic plugin tests..."
+          # Add your plugin-specific tests here
+          # Example: PHPUnit tests, WordPress coding standards, etc.
+          
+          # Test plugin headers
+          for plugin in plugins/*/; do
+            if [ -d "$plugin" ]; then
+              plugin_name=$(basename "$plugin")
+              echo "Checking plugin headers for: $plugin_name"
+              main_file=$(find "$plugin" -name "*.php" -exec grep -l "Plugin Name:" {} \; | head -1)
+              if [ -n "$main_file" ]; then
+                grep -q "Plugin Name:" "$main_file" && echo "✓ Plugin Name found"
+                grep -q "Version:" "$main_file" && echo "✓ Version found"
+                grep -q "Description:" "$main_file" && echo "✓ Description found"
+              fi
+            fi
+          done

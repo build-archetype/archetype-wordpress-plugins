@@ -1,0 +1,25 @@
+# WordPress.org Assets Directory
+
+This directory should contain:
+
+## Required Files:
+- banner-1544x500.jpg (Main banner)
+- banner-772x250.jpg (Smaller banner)
+- icon-128x128.png (Plugin icon)
+- icon-256x256.png (High-res icon)
+
+## Optional Files:
+- screenshot-1.jpg (Settings page)
+- screenshot-2.jpg (Stream player in action)
+- screenshot-3.jpg (Tier configuration)
+
+## Image Guidelines:
+- Use high-quality images
+- Show your plugin in action
+- Follow WordPress visual style
+- No excessive text on images
+
+## Notes:
+- These assets appear on your plugin's WordPress.org page
+- They're critical for user trust and downloads
+- Update via SVN after plugin approval 

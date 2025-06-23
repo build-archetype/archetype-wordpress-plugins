@@ -1,0 +1,451 @@
+/**
+ * Ant Media Stream Access - Frontend Styles
+ * Version: 2.0.0
+ */
+
+/* ===== PLAYER CONTAINER ===== */
+.amsa-player-container {
+    position: relative;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    margin: 20px 0;
+}
+
+.amsa-player-container:hover {
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+/* ===== STREAM STATUS BAR ===== */
+.amsa-stream-status {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
+    backdrop-filter: blur(10px);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    transition: opacity 0.3s ease;
+}
+
+.amsa-player-container:hover .amsa-stream-status {
+    opacity: 1;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff4444;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.live {
+    background: #00ff88;
+}
+
+.status-dot.connecting {
+    background: #ffaa00;
+}
+
+.status-dot.error {
+    background: #ff4444;
+    animation: flash 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+.status-text {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.stream-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ===== TIER BADGES ===== */
+.tier-badge {
+    background: linear-gradient(135deg, #6b73ff, #9c88ff);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tier-badge.tier-platinum {
+    background: linear-gradient(135deg, #e8e8e8, #ffffff);
+    color: #333;
+}
+
+.tier-badge.tier-gold {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #333;
+}
+
+.tier-badge.tier-silver {
+    background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+    color: #333;
+}
+
+.viewer-count, .quality-indicator, .latency-indicator {
+    color: #ffffff;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 8px;
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+}
+
+/* ===== PLAYER ELEMENTS ===== */
+.amsa-player-container iframe,
+.amsa-player-container video {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 12px;
+}
+
+/* ===== LOADING OVERLAY ===== */
+.amsa-player-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    border-radius: 12px;
+}
+
+.overlay-content {
+    text-align: center;
+    color: white;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #00ff88;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.overlay-text {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+/* ===== PLAYER META INFO ===== */
+.amsa-player-meta {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+    padding: 15px 20px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    z-index: 10;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.amsa-player-container:hover .amsa-player-meta {
+    opacity: 1;
+}
+
+.amsa-player-meta span {
+    color: #cccccc;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 8px;
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+}
+
+.analytics-status {
+    color: #00ff88 !important;
+}
+
+/* ===== MESSAGE COMPONENTS ===== */
+.amsa-message {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 40px 30px;
+    text-align: center;
+    margin: 20px 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.amsa-message.amsa-access-denied {
+    background: linear-gradient(135deg, #fff5f5, #fed7d7);
+    border-color: #feb2b2;
+}
+
+.amsa-message.amsa-login-required {
+    background: linear-gradient(135deg, #fffaf0, #feebc8);
+    border-color: #f6ad55;
+}
+
+.amsa-message.amsa-no-stream {
+    background: linear-gradient(135deg, #f0fff4, #c6f6d5);
+    border-color: #9ae6b4;
+}
+
+.amsa-message.amsa-token-error,
+.amsa-message.amsa-url-error {
+    background: linear-gradient(135deg, #fffbf0, #feebcb);
+    border-color: #f6ad55;
+}
+
+.message-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.8;
+}
+
+.amsa-message h3 {
+    margin: 0 0 15px;
+    color: #2d3748;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.amsa-message p {
+    margin: 0 0 20px;
+    color: #4a5568;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.amsa-message p:last-child {
+    margin-bottom: 0;
+}
+
+/* ===== BUTTONS ===== */
+.amsa-login-button,
+.amsa-refresh-button {
+    display: inline-block;
+    background: linear-gradient(135deg, #4299e1, #3182ce);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+}
+
+.amsa-login-button:hover,
+.amsa-refresh-button:hover {
+    background: linear-gradient(135deg, #3182ce, #2c5282);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(66, 153, 225, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+    .amsa-player-container {
+        margin: 15px 0;
+        border-radius: 8px;
+    }
+    
+    .amsa-stream-status {
+        padding: 10px 15px;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    
+    .stream-info {
+        gap: 8px;
+    }
+    
+    .tier-badge,
+    .viewer-count,
+    .quality-indicator,
+    .latency-indicator {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+    
+    .amsa-player-meta {
+        padding: 12px 15px;
+        gap: 10px;
+    }
+    
+    .amsa-player-meta span {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+    
+    .amsa-message {
+        padding: 30px 20px;
+        margin: 15px 0;
+    }
+    
+    .message-icon {
+        font-size: 36px;
+        margin-bottom: 15px;
+    }
+    
+    .amsa-message h3 {
+        font-size: 20px;
+    }
+    
+    .amsa-message p {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .amsa-stream-status {
+        position: static;
+        background: rgba(0, 0, 0, 0.9);
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .amsa-player-meta {
+        position: static;
+        background: rgba(0, 0, 0, 0.9);
+        opacity: 1;
+        border-radius: 0 0 8px 8px;
+    }
+    
+    .stream-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+}
+
+/* ===== PLAYER TYPE SPECIFIC STYLES ===== */
+.iframe-player {
+    border: 2px solid #4299e1;
+}
+
+.hls-player {
+    border: 2px solid #00ff88;
+}
+
+.webrtc-player {
+    border: 2px solid #ff6b6b;
+}
+
+.webrtc-player .latency-indicator {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+}
+
+/* ===== ANIMATION ENHANCEMENTS ===== */
+.amsa-player-container.loading {
+    opacity: 0.7;
+}
+
+.amsa-player-container.loaded {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== ACCESSIBILITY ===== */
+.amsa-player-container:focus-within {
+    outline: 3px solid #4299e1;
+    outline-offset: 2px;
+}
+
+.amsa-login-button:focus,
+.amsa-refresh-button:focus {
+    outline: 3px solid #4299e1;
+    outline-offset: 2px;
+}
+
+/* Ensure text is readable */
+@media (prefers-reduced-motion: reduce) {
+    .amsa-player-container,
+    .status-dot,
+    .loading-spinner,
+    .amsa-login-button,
+    .amsa-refresh-button {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .amsa-player-container {
+        border: 2px solid #000;
+    }
+    
+    .tier-badge,
+    .viewer-count,
+    .quality-indicator,
+    .latency-indicator {
+        border: 1px solid #000;
+    }
+}
+
+/* Ant Media Stream Plugin Styles */
+/* Styles are included inline in shortcode.php for simplicity */
+/* This file exists to prevent 404 errors when the plugin enqueues assets */
+
+.ant-media-container {
+    /* Basic container styles will be added via inline styles */
+} 

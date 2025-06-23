@@ -1,0 +1,74 @@
+# WordPress Plugins Monorepo
+
+# Build artifacts
+build/
+dist/
+*.zip
+*.tar.gz
+
+# Development environment
+.docker/
+docker-compose.override.yml
+
+# WordPress debug logs
+wp-content/debug.log
+*.log
+
+# Database backups
+backup-*.sql
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# WordPress specific
+wp-config.php
+wp-content/uploads/
+wp-content/cache/
+wp-content/upgrade/
+wp-content/backup-db/
+
+# Plugin specific ignores
+*.bak
+*~
+.sass-cache/
+
+# Composer
+vendor/
+composer.lock
+
+# Test coverage
+coverage/
+*.lcov
+
+# Plugin builds (keep source, ignore compiled)
+plugins/*/assets/js/build/
+plugins/*/assets/css/build/

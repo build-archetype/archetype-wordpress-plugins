@@ -1,0 +1,112 @@
+# WordPress Plugin .gitignore
+
+# WordPress core files
+wp-config.php
+wp-config-local.php
+wp-config-sample.php
+wp-content/uploads/
+wp-content/cache/
+wp-content/backup*/
+wp-content/backups/
+wp-content/blogs.dir/
+wp-content/upgrade/
+wp-content/mu-plugins/
+wp-content/debug.log
+
+# WordPress database dumps
+*.sql
+*.sql.gz
+
+# Node.js dependencies and build files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.pnpm-debug.log*
+
+# Build and distribution files
+dist/
+build/
+assets/js/*.min.js
+assets/css/*.min.css
+*.map
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+nbproject/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+.cache/
+.sass-cache/
+
+# Environment and configuration files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.htaccess
+
+# Composer dependencies (if using PHP Composer)
+vendor/
+composer.lock
+
+# PHP-specific
+*.php~
+.phpunit.result.cache
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Translation files (if not needed in repo)
+*.pot
+*.po~
+
+# Plugin-specific temporary files
+error_log
+debug.log
+
+# Deployment and build scripts
+deploy.sh
+build.sh
+
+# Documentation drafts (keep main docs)
+drafts/
+private-notes/
+
+# Test files and coverage reports (unless you want them tracked)
+coverage/
+.nyc_output/
+.phpunit.cache/
+
+# Minified assets (keep source files)
+*.min.js
+*.min.css
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar 

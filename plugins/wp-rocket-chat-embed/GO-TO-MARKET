@@ -1,0 +1,79 @@
+# Go-To-Market Plan: Rocket.Chat Embed for WordPress
+
+## 1. Product Offering
+
+- **Lite Version (Free):**
+
+  - Listed on WordPress.org for maximum exposure.
+  - Basic embedding of public Rocket.Chat channels via shortcode or Elementor widget.
+  - No SSO or user sync.
+  - Clear upgrade prompts to Pro.
+
+- **Pro Version (Paid):**
+  - Sold via Lemon Squeezy (handles payments, licensing, and updates).
+  - Unlocks SSO, user sync, advanced customization, debug tools, and priority support.
+  - Annual subscription for ongoing updates and support.
+
+## 2. Launch Steps
+
+- Prepare and submit Lite version to WordPress.org.
+- Set up Lemon Squeezy store for Pro version sales and license management.
+- Add upgrade prompts and license activation in the plugin.
+- Create a landing page with feature comparison and purchase links.
+
+## 3. Marketing Strategy
+
+- **SEO & Content:** Blog posts, tutorials, and use-case guides targeting "WordPress chat", "Rocket.Chat WordPress integration", etc.
+- **Partnerships:** Collaborate with Rocket.Chat, hosting providers, and WordPress agencies.
+- **Social Proof:** Collect and display testimonials and case studies.
+- **In-Plugin Upsell:** Prominent upgrade banners and feature comparisons in the Lite plugin settings.
+- **Email List:** Capture leads for launch updates and Pro offers.
+
+## 4. Support & Updates
+
+- **Lite:** Community support via WordPress.org forums.
+- **Pro:** Priority email support and regular updates via Lemon Squeezy licensing system.
+
+## 5. Upgrade Path
+
+- Users install Lite from WP.org.
+- Upgrade prompts guide them to purchase Pro via Lemon Squeezy.
+- After purchase, users receive a license key and download link.
+- Pro plugin checks license for updates and support access.
+
+## 6. Success Metrics
+
+- Number of Lite installs and active sites.
+- Conversion rate from Lite to Pro.
+- Customer satisfaction and support response times.
+- Revenue growth and renewal rates.
+
+## 7. Freemium Model & Licensing Approach
+
+- **Single codebase:** Both Lite and Pro features are included in the same plugin.
+- **Distribution:**
+  - The plugin is distributed for free via GitHub (and optionally WordPress.org for Lite exposure).
+  - All users receive updates automatically via GitHub Updater or WP.org.
+- **Pro Features:**
+  - Pro features are locked and require a valid license key (sold via Lemon Squeezy) to unlock.
+  - Users can upgrade at any time by purchasing a license and entering it in the plugin settings.
+- **Licensing:**
+  - Lemon Squeezy SDK is integrated for license validation and Pro unlocks.
+  - No license = Lite features only; valid license = Pro features enabled.
+- **Security:**
+  - All code is visible, but value is in licensing, updates, and support (standard for WP plugins).
+
+## Next Steps Checklist
+
+- [ ] Integrate Lemon Squeezy SDK for license validation and Pro unlocks.
+- [ ] Add license key entry and validation to plugin settings page.
+- [ ] Add `is_pro_active()` checks to all Pro features.
+- [ ] Set up GitHub Updater for automatic updates.
+- [ ] (Optional) Submit Lite version to WordPress.org for maximum reach.
+- [ ] Add clear upgrade prompts and documentation in the plugin.
+- [ ] Test upgrade flow and update delivery.
+- [ ] Launch marketing and support channels.
+
+---
+
+**This approach maximizes reach, simplifies updates, and makes upgrading to Pro seamless for users.**

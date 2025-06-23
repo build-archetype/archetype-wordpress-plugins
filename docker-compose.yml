@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:latest
+    container_name: archetype_wp_dev
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 1
+      WORDPRESS_DEBUG_LOG: 1
+    volumes:
+      # Mount plugins for hot reloading
+      - ./wp-ant-media-stream-access:/var/www/html/wp-content/plugins/wp-ant-media-stream-access
+      - ./wp-video-library:/var/www/html/wp-content/plugins/wp-video-library
+      - ./wp-rocket-chat-embed:/var/www/html/wp-content/plugins/wp-rocket-chat-embed
+      # Persistent WordPress data
+      - wp_data:/var/www/html
+      # Custom themes (if needed)
+      - ./themes:/var/www/html/wp-content/themes/custom
+    depends_on:
+      - db
+    networks:
+      - wp_network
+
+  db:
+    image: mysql:8.0
+    container_name: archetype_wp_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - wp_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: archetype_wp_phpmyadmin
+    restart: always
+    ports:
+      - "8082:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: wordpress
+      PMA_PASSWORD: wordpress
+    depends_on:
+      - db
+    networks:
+      - wp_network
+
+  wpcli:
+    image: wordpress:cli
+    container_name: archetype_wp_cli
+    depends_on:
+      - db
+      - wordpress
+    volumes:
+      - wp_data:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    networks:
+      - wp_network
+
+volumes:
+  wp_data:
+  db_data:
+
+networks:
+  wp_network:
+    driver: bridge 

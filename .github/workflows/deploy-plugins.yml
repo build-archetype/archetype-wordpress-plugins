@@ -1,0 +1,119 @@
+name: Deploy WordPress Plugins
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: 'Plugin to deploy'
+        required: true
+        type: choice
+        options:
+        - wp-ant-media-stream-access
+        - wp-video-library
+        - wp-rocket-chat-embed
+        - all
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.changes.outputs.plugins }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Detect changed plugins
+        id: changes
+        run: |
+          if [ "${{ github.event.inputs.plugin }}" = "all" ] || [ "${{ github.event_name }}" = "push" ]; then
+            echo "plugins=[\"wp-ant-media-stream-access\",\"wp-video-library\",\"wp-rocket-chat-embed\"]" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.plugin }}" ]; then
+            echo "plugins=[\"${{ github.event.inputs.plugin }}\"]" >> $GITHUB_OUTPUT
+          else
+            # Detect changes since last tag
+            LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [ -z "$LAST_TAG" ]; then
+              CHANGED_PLUGINS=$(find plugins/ -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
+            else
+              CHANGED_PLUGINS=$(git diff --name-only $LAST_TAG..HEAD | grep '^plugins/' | cut -d'/' -f2 | sort -u)
+            fi
+            PLUGINS_JSON=$(echo "$CHANGED_PLUGINS" | jq -R -s -c 'split("\n")[:-1]')
+            echo "plugins=$PLUGINS_JSON" >> $GITHUB_OUTPUT
+          fi
+
+  deploy:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.plugins != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        plugin: ${{ fromJSON(needs.detect-changes.outputs.plugins) }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Get plugin version
+        id: version
+        run: |
+          # Try multiple possible main plugin files
+          PLUGIN_FILE=""
+          if [ -f "plugins/${{ matrix.plugin }}/${{ matrix.plugin }}.php" ]; then
+            PLUGIN_FILE="plugins/${{ matrix.plugin }}/${{ matrix.plugin }}.php"
+          elif [ -f "plugins/${{ matrix.plugin }}/$(echo ${{ matrix.plugin }} | sed 's/wp-//').php" ]; then
+            PLUGIN_FILE="plugins/${{ matrix.plugin }}/$(echo ${{ matrix.plugin }} | sed 's/wp-//').php"
+          else
+            # Find the first PHP file with plugin headers
+            PLUGIN_FILE=$(find plugins/${{ matrix.plugin }}/ -name "*.php" -exec grep -l "Plugin Name:" {} \; | head -1)
+          fi
+          
+          if [ -n "$PLUGIN_FILE" ]; then
+            VERSION=$(grep "Version:" "$PLUGIN_FILE" | sed 's/.*Version: *//' | sed 's/ *$//')
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "plugin_file=$PLUGIN_FILE" >> $GITHUB_OUTPUT
+          else
+            echo "Could not find main plugin file for ${{ matrix.plugin }}"
+            exit 1
+          fi
+
+      - name: Build plugin
+        run: |
+          cd plugins/${{ matrix.plugin }}
+          if [ -f package.json ]; then
+            npm install
+            npm run build
+          fi
+
+      - name: Package plugin
+        run: |
+          ./scripts/package-plugin.sh ${{ matrix.plugin }}
+
+      - name: Deploy to WordPress.org
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SLUG: ${{ matrix.plugin }}
+          BUILD_DIR: ./plugins/${{ matrix.plugin }}
+          ASSETS_DIR: ./plugins/${{ matrix.plugin }}/.wordpress-org
+        with:
+          generate-zip: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ matrix.plugin }}-v${{ steps.version.outputs.version }}
+          name: ${{ matrix.plugin }} v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: build/${{ matrix.plugin }}-v${{ steps.version.outputs.version }}.zip
