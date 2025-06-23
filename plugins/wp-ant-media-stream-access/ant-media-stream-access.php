@@ -374,11 +374,21 @@ add_action('admin_notices', function() {
 // Load Elementor widget if Elementor is active
 add_action('elementor/widgets/register', function($widgets_manager) {
     try {
+        // Original Ant Media Stream widget
         $widget_file = AMSA_PLUGIN_DIR . 'elementor-widgets/ant-media-stream-widget.php';
         if (file_exists($widget_file)) {
             require_once $widget_file;
             if (class_exists('Elementor\Ant_Media_Stream_Widget')) {
                 $widgets_manager->register(new \Elementor\Ant_Media_Stream_Widget());
+            }
+        }
+        
+        // Combined Stream + Chat widget
+        $combined_widget_file = AMSA_PLUGIN_DIR . 'elementor-widgets/stream-chat-widget.php';
+        if (file_exists($combined_widget_file)) {
+            require_once $combined_widget_file;
+            if (class_exists('Stream_Chat_Combined_Widget')) {
+                $widgets_manager->register(new \Stream_Chat_Combined_Widget());
             }
         }
     } catch (Exception $e) {

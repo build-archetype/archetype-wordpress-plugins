@@ -30,6 +30,7 @@ require_once AMSA_PLUGIN_DIR . 'includes/logging.php';
 require_once AMSA_PLUGIN_DIR . 'includes/helpers.php';
 require_once AMSA_PLUGIN_DIR . 'includes/shortcode.php';
 require_once AMSA_PLUGIN_DIR . 'includes/settings.php';
+require_once AMSA_PLUGIN_DIR . 'includes/rocket-chat-integration.php';
 
 // Safety check for critical functions to prevent fatal errors
 if (!function_exists('ant_media_log')) {
