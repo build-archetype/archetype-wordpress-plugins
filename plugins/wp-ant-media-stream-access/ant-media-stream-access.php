@@ -378,8 +378,8 @@ add_action('elementor/widgets/register', function($widgets_manager) {
         $widget_file = AMSA_PLUGIN_DIR . 'elementor-widgets/ant-media-stream-widget.php';
         if (file_exists($widget_file)) {
             require_once $widget_file;
-            if (class_exists('Elementor\Ant_Media_Stream_Widget')) {
-                $widgets_manager->register(new \Elementor\Ant_Media_Stream_Widget());
+            if (class_exists('Elementor\\Ant_Media_Stream_Widget')) {
+                $widgets_manager->register(new \Elementor\\Ant_Media_Stream_Widget());
             }
         }
         
