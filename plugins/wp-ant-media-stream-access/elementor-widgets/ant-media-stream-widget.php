@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 namespace Elementor;
 
-class Ant_Media_Stream_Widget extends \Elementor\Widget_Base {
+class Ant_Media_Stream_Widget extends Widget_Base {
 
     public function get_name() {
         return 'ant-media-stream';
