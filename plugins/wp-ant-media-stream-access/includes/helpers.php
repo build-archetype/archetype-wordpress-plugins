@@ -51,7 +51,7 @@ class SimpleJWT {
 /**
  * User Tier Detection Logic
  */
-function get_user_tier() {
+function amsa_amsa_get_user_tier() {
     if (!is_user_logged_in()) {
         return null;
     }
@@ -83,7 +83,7 @@ function get_user_tier() {
  * Stream Selection Logic
  */
 function get_stream_id_for_user() {
-    $tier = get_user_tier();
+    $tier = amsa_get_user_tier();
     
     if (!$tier) {
         return null; // No access for non-logged-in users
@@ -122,7 +122,7 @@ function generate_stream_token($stream_id, $user_id = null) {
     }
     
     $current_user = get_userdata($user_id);
-    $tier = get_user_tier();
+    $tier = amsa_get_user_tier();
     
     $payload = [
         'streamName' => $stream_id,

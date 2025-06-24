@@ -136,7 +136,7 @@ class AMSA_Database {
         try {
             $table = $wpdb->prefix . 'amsa_stream_events';
             
-            $user_tier = get_user_tier();
+            $user_tier = amsa_get_user_tier();
             $ip_address = self::get_client_ip();
             $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
             
@@ -201,7 +201,7 @@ class AMSA_Database {
                 // Create new session
                 $user_id = get_current_user_id();
                 $stream_id = isset($event_data['stream_id']) ? $event_data['stream_id'] : '';
-                $user_tier = get_user_tier();
+                $user_tier = amsa_get_user_tier();
                 $ip_address = self::get_client_ip();
                 $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
                 

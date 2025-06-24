@@ -65,7 +65,7 @@ class AMSA_Stream_Player {
         }
         
         $user_id = get_current_user_id();
-        $user_tier = get_user_tier();
+        $user_tier = amsa_get_user_tier();
         $player_id = 'amsa-player-' . uniqid();
         $session_id = self::generate_session_id($user_id, $stream_id);
         
@@ -89,7 +89,7 @@ class AMSA_Stream_Player {
      * Render iframe-based player with postMessage communication
      */
     private static function render_iframe_player($player_id, $stream_url, $options, $stream_id, $session_id) {
-        $user_tier = get_user_tier();
+        $user_tier = amsa_get_user_tier();
         $iframe_src = self::build_iframe_src($stream_url, $options, $stream_id, $session_id);
         
         ob_start();
@@ -170,7 +170,7 @@ class AMSA_Stream_Player {
      * Render HLS video player with advanced features
      */
     private static function render_hls_player($player_id, $stream_url, $options, $stream_id, $session_id) {
-        $user_tier = get_user_tier();
+        $user_tier = amsa_get_user_tier();
         $controls = ($options['controls'] === 'true') ? 'controls' : '';
         $autoplay = ($options['autoplay'] === 'true') ? 'autoplay' : '';
         $muted = ($options['muted'] === 'true') ? 'muted' : '';
@@ -258,7 +258,7 @@ class AMSA_Stream_Player {
      * Render WebRTC player (experimental)
      */
     private static function render_webrtc_player($player_id, $stream_url, $options, $stream_id, $session_id) {
-        $user_tier = get_user_tier();
+        $user_tier = amsa_get_user_tier();
         
         ob_start();
         ?>
@@ -369,7 +369,7 @@ class AMSA_Stream_Player {
      * Render no stream message
      */
     private static function render_no_stream_message() {
-        $user_tier = get_user_tier();
+        $user_tier = amsa_get_user_tier();
         return '<div class="amsa-message amsa-no-stream">
             <div class="message-icon">📺</div>
             <h3>No Stream Available</h3>

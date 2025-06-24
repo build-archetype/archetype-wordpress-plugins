@@ -3,7 +3,7 @@
  * Plugin Name: WP Ant Media Stream Access
  * Plugin URI: https://archetype.services
  * Description: Simple iframe embedding for Ant Media Server streams with automatic stream status detection and customizable offline messages.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Archetype Services
  * Author URI: https://archetype.services
  * Text Domain: ant-media-stream
@@ -19,7 +19,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AMSA_VERSION', '1.0.1');
+define('AMSA_VERSION', '1.0.2');
 define('AMSA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('AMSA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AMSA_PLUGIN_FILE', __FILE__);
