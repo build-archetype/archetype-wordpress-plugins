@@ -144,43 +144,60 @@ function video_library_modern_shortcode($atts) {
             
             <!-- Video Switching JavaScript -->
             <script>
-            // Global video player initialization fallback
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('🎥 Global fallback: Looking for video player...');
+            // FORCE Video.js initialization - multiple attempts
+            function forceInitVideoPlayer() {
+                console.log('🔥 FORCE: Attempting video player initialization...');
                 
                 // Find the video element
                 const videoElement = document.querySelector('.video-js');
-                if (videoElement && !window.mainVideoPlayer) {
-                    console.log('🎥 Found video element, initializing Video.js globally:', videoElement.id);
-                    
-                    setTimeout(function() {
-                        if (typeof videojs !== 'undefined') {
-                            try {
-                                window.mainVideoPlayer = videojs(videoElement.id, {
-                                    fluid: false,
-                                    responsive: false,
-                                    fill: true,
-                                    aspectRatio: '16:9'
-                                });
-                                
-                                console.log('✅ Global fallback: Video.js player initialized:', window.mainVideoPlayer);
-                                
-                                window.mainVideoPlayer.ready(function() {
-                                    console.log('✅ Global fallback: Video.js player ready');
-                                    this.dimensions('100%', '100%');
-                                });
-                            } catch (error) {
-                                console.error('❌ Global fallback: Video.js initialization failed:', error);
-                            }
-                        } else {
-                            console.error('❌ Global fallback: Video.js library not found');
+                console.log('🔥 Video element found:', !!videoElement, videoElement?.id);
+                console.log('🔥 Video.js library loaded:', typeof videojs !== 'undefined');
+                
+                if (videoElement && typeof videojs !== 'undefined' && !window.mainVideoPlayer) {
+                    try {
+                        console.log('🔥 Creating Video.js player for:', videoElement.id);
+                        
+                        window.mainVideoPlayer = videojs(videoElement.id, {
+                            fluid: false,
+                            responsive: false,
+                            fill: true,
+                            aspectRatio: '16:9'
+                        });
+                        
+                        console.log('✅ SUCCESS: Video.js player created:', window.mainVideoPlayer);
+                        
+                        if (window.mainVideoPlayer.ready) {
+                            window.mainVideoPlayer.ready(function() {
+                                console.log('✅ SUCCESS: Video.js player ready');
+                                this.dimensions('100%', '100%');
+                            });
                         }
-                    }, 1000);
-                } else if (!videoElement) {
-                    console.error('❌ Global fallback: No video element found');
+                        
+                        return true;
+                    } catch (error) {
+                        console.error('❌ FAILED: Video.js initialization error:', error);
+                        return false;
+                    }
                 } else {
-                    console.log('✅ Global fallback: Video player already exists');
+                    console.error('❌ FAILED: Missing requirements - element:', !!videoElement, 'videojs:', typeof videojs !== 'undefined', 'already exists:', !!window.mainVideoPlayer);
+                    return false;
                 }
+            }
+            
+            // Try initialization multiple times
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('🔥 DOM loaded - starting video player initialization...');
+                
+                setTimeout(() => forceInitVideoPlayer(), 100);
+                setTimeout(() => forceInitVideoPlayer(), 500);
+                setTimeout(() => forceInitVideoPlayer(), 1000);
+                setTimeout(() => forceInitVideoPlayer(), 2000);
+            });
+            
+            window.addEventListener('load', function() {
+                console.log('🔥 Window loaded - trying video player initialization...');
+                setTimeout(() => forceInitVideoPlayer(), 100);
+                setTimeout(() => forceInitVideoPlayer(), 1000);
             });
             
             // Switch video function for sidebar clicks
@@ -201,20 +218,36 @@ function video_library_modern_shortcode($atts) {
                 }
                 
                 if (!window.mainVideoPlayer) {
-                    console.error('❌ Video player not found. Attempting to initialize...');
+                    console.error('❌ Video player not found. EMERGENCY INITIALIZATION...');
+                    
+                    // Debug current state
+                    console.log('🔍 Debug: Video elements found:', document.querySelectorAll('video').length);
+                    console.log('🔍 Debug: Video.js elements found:', document.querySelectorAll('.video-js').length);
+                    console.log('🔍 Debug: Video.js library loaded:', typeof videojs !== 'undefined');
                     
                     // Try to find and initialize the video player
                     const videoElement = document.querySelector('.video-js');
+                    console.log('🔍 Found video element:', videoElement, videoElement?.id);
+                    
                     if (videoElement && typeof videojs !== 'undefined') {
                         try {
-                            window.mainVideoPlayer = videojs(videoElement.id);
-                            console.log('✅ Emergency initialization successful:', window.mainVideoPlayer);
+                            console.log('🚨 EMERGENCY: Creating Video.js player for:', videoElement.id);
+                            window.mainVideoPlayer = videojs(videoElement.id, {
+                                fluid: false,
+                                responsive: false,
+                                fill: true,
+                                aspectRatio: '16:9'
+                            });
+                            console.log('✅ EMERGENCY: Video.js player created:', window.mainVideoPlayer);
+                            
                             // Now try the switch again
                             switchVideo(element);
                             return;
                         } catch (error) {
-                            console.error('❌ Emergency initialization failed:', error);
+                            console.error('❌ EMERGENCY: Video.js initialization failed:', error);
                         }
+                    } else {
+                        console.error('❌ EMERGENCY: Cannot initialize - element:', !!videoElement, 'videojs:', typeof videojs !== 'undefined');
                     }
                     
                     // If emergency init failed, try waiting
@@ -222,21 +255,20 @@ function video_library_modern_shortcode($atts) {
                         if (window.mainVideoPlayer) {
                             switchVideo(element);
                         } else {
-                            console.error('❌ Video player still not found after waiting');
-                            console.log('🔍 Debug: Video elements found:', document.querySelectorAll('video').length);
-                            console.log('🔍 Debug: Video.js elements found:', document.querySelectorAll('.video-js').length);
-                            console.log('🔍 Debug: Video.js library loaded:', typeof videojs !== 'undefined');
+                            console.error('❌ Video player STILL not found after emergency attempts');
                         }
                     }, 2000);
                     return;
                 }
                 
                 try {
-                    // Update the video source
+                    // Update the video source - back to simple working version
                     window.mainVideoPlayer.src({
                         src: videoUrl,
                         type: 'video/mp4'
                     });
+                    
+                    console.log('🎬 Setting video source to:', videoUrl);
                     
                     // Update the video title in the info panel
                     const titleElement = document.querySelector('.video-section-container h1');
@@ -267,7 +299,7 @@ function video_library_modern_shortcode($atts) {
                     element.classList.remove('hover:bg-gray-50');
                     element.classList.add('bg-blue-50', 'border-blue-200');
                     
-                    // Load and play the new video
+                    // Load the video
                     window.mainVideoPlayer.load();
                     
                     console.log('✅ Successfully switched video to:', videoTitle);
