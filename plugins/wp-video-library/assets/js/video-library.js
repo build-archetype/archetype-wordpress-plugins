@@ -27,9 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         initializeYouTubeLayout: function() {
-            // Initialize main player for YouTube layout
-            this.mainPlayer = document.querySelector('.video-library-main-video');
-            this.mainVideo = document.getElementById('main-video-player');
+            // Initialize main player for YouTube layout (both admin and shortcode)
+            this.mainPlayer = document.querySelector('.video-library-main-video, .main-video-container');
+            this.mainVideo = document.getElementById('main-video-player') || document.getElementById('main-dashboard-video');
             
             if (this.mainPlayer) {
                 console.log('YouTube layout detected, initializing...');
@@ -38,23 +38,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Set initial video data from the featured video
                 this.currentVideoData = this.extractVideoData(this.mainPlayer);
                 console.log('Initial featured video:', this.currentVideoData);
+                
+                // Initialize first video in sidebar as active
+                this.initializeSidebarActive();
+            }
+        },
+
+        initializeSidebarActive: function() {
+            // Set first video in sidebar as active if no video is currently active
+            const firstSidebarItem = document.querySelector('.sidebar-video-item, .video-sidebar-item');
+            const activeItem = document.querySelector('.sidebar-video-item.active, .video-sidebar-item.active');
+            
+            if (firstSidebarItem && !activeItem) {
+                firstSidebarItem.classList.add('active');
             }
         },
 
         bindYouTubeEvents: function() {
             const self = this;
             
-            // Main player thumbnail click - play inline
-            const mainThumbnail = this.mainPlayer?.querySelector('.video-thumbnail');
+            // Main player thumbnail click - play inline (support both layouts)
+            const mainThumbnail = this.mainPlayer?.querySelector('.video-thumbnail, .main-video-thumbnail');
             if (mainThumbnail) {
                 mainThumbnail.addEventListener('click', function() {
                     self.playMainVideo();
                 });
             }
             
-            // Sidebar item clicks - switch main video
+            // Sidebar item clicks - switch main video (support both admin and shortcode layouts)
             document.addEventListener('click', function(e) {
-                const sidebarItem = e.target.closest('.video-sidebar-item');
+                const sidebarItem = e.target.closest('.video-sidebar-item, .sidebar-video-item');
                 if (sidebarItem) {
                     e.preventDefault();
                     console.log('Sidebar video clicked:', sidebarItem);
@@ -150,15 +163,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.mainPlayer.setAttribute(`data-${dataKey}`, videoData[key]);
             });
             
-            // Update thumbnail
-            const thumbnail = this.mainPlayer.querySelector('.video-thumbnail');
+                        // Update thumbnail (support both layouts)
+            const thumbnail = this.mainPlayer.querySelector('.video-thumbnail, .main-video-thumbnail');
             if (thumbnail) {
                 thumbnail.style.backgroundImage = `url('${videoData.thumbnailUrl || ''}')`;
                 thumbnail.classList.remove('hidden');
             }
             
-            // Update duration overlay
-            const duration = this.mainPlayer.querySelector('.video-duration');
+            // Update duration overlay (support both layouts)
+            const duration = this.mainPlayer.querySelector('.video-duration, .main-video-duration');
             if (duration) {
                 duration.textContent = videoData.videoDuration || 'Unknown';
             }
@@ -196,8 +209,8 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         updateSidebarActiveState: function(activeItem) {
-            // Remove active class from all sidebar items
-            const sidebarItems = document.querySelectorAll('.video-sidebar-item');
+            // Remove active class from all sidebar items (support both layouts)
+            const sidebarItems = document.querySelectorAll('.video-sidebar-item, .sidebar-video-item');
             sidebarItems.forEach(item => item.classList.remove('active'));
             
             // Add active class to clicked item
@@ -207,17 +220,17 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         playNextVideo: function() {
-            const activeItem = document.querySelector('.video-sidebar-item.active');
-            const nextItem = activeItem ? activeItem.nextElementSibling : document.querySelector('.video-sidebar-item');
+            const activeItem = document.querySelector('.video-sidebar-item.active, .sidebar-video-item.active');
+            const nextItem = activeItem ? activeItem.nextElementSibling : document.querySelector('.video-sidebar-item, .sidebar-video-item');
             
-            if (nextItem) {
+            if (nextItem && (nextItem.classList.contains('video-sidebar-item') || nextItem.classList.contains('sidebar-video-item'))) {
                 console.log('Auto-playing next video');
                 this.switchMainVideo(nextItem);
                 setTimeout(() => this.playMainVideo(), 500);
             } else {
                 console.log('No next video available');
                 // Show thumbnail again
-                const thumbnail = this.mainPlayer?.querySelector('.video-thumbnail');
+                const thumbnail = this.mainPlayer?.querySelector('.video-thumbnail, .main-video-thumbnail');
                 if (thumbnail) {
                     thumbnail.classList.remove('hidden');
                 }
@@ -302,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         extractThumbnailUrl: function(element) {
-            const thumbnail = element.querySelector('.video-thumbnail, .sidebar-thumbnail');
+            const thumbnail = element.querySelector('.video-thumbnail, .sidebar-thumbnail, .main-video-thumbnail, .sidebar-video-thumbnail');
             if (thumbnail) {
                 const bgImage = window.getComputedStyle(thumbnail).getPropertyValue('background-image');
                 const match = bgImage.match(/url\(["']?([^"']*)["']?\)/);
@@ -890,9 +903,289 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the video library
     videoLibrary.init();
     
+    // Initialize clean YouTube layout
+    initializeYouTubeLayoutClean();
+    
     // Make it globally accessible for debugging
     window.videoLibrary = videoLibrary;
+    
+    // Elementor Editor Support
+    if (typeof elementor !== 'undefined' && elementor.isEditMode) {
+        console.log('Elementor edit mode detected - initializing video library editor support');
+        
+        // Create global refresh handler for Elementor
+        window.VideoLibraryElementor = {
+            refresh: function(widgetElement) {
+                console.log('Refreshing Video Library widget:', widgetElement);
+                
+                // Find all video library containers in this widget
+                $(widgetElement).find('.video-library-container').each(function() {
+                    // Re-initialize the video library
+                    videoLibrary.init();
+                });
+            },
+            
+            // Force refresh all video libraries
+            refreshAll: function() {
+                $('.elementor-video-library-widget .video-library-container').each(function() {
+                    videoLibrary.init();
+                });
+            }
+        };
+        
+        // Listen for Elementor widget updates
+        elementor.hooks.addAction('panel/open_editor/widget/video_library', function(panel, model, view) {
+            console.log('Video Library widget panel opened');
+            
+            // Refresh the widget when panel opens
+            setTimeout(function() {
+                if (view && view.$el) {
+                    window.VideoLibraryElementor.refresh(view.$el[0]);
+                }
+            }, 300);
+        });
+        
+        // Listen for setting changes
+        elementor.hooks.addAction('panel/close_editor/widget', function(panel, model, view) {
+            if (model.get('widgetType') === 'video_library') {
+                console.log('Video Library widget settings changed');
+                
+                // Small delay to allow DOM updates
+                setTimeout(function() {
+                    if (view && view.$el) {
+                        window.VideoLibraryElementor.refresh(view.$el[0]);
+                    }
+                }, 100);
+            }
+        });
+        
+        // Auto-refresh when content changes
+        $(document).on('elementor/render/widget', function(e, widgetView) {
+            if (widgetView.model.get('widgetType') === 'video_library') {
+                setTimeout(function() {
+                    window.VideoLibraryElementor.refresh(widgetView.$el[0]);
+                }, 100);
+            }
+        });
+        
+        // Refresh on widget model changes
+        elementor.channels.data.on('element:change', function(model) {
+            if (model.get('widgetType') === 'video_library') {
+                const view = elementor.getCurrentElement().view;
+                if (view) {
+                    setTimeout(function() {
+                        window.VideoLibraryElementor.refresh(view.$el[0]);
+                    }, 50);
+                }
+            }
+        });
+    }
 });
+
+// Clean YouTube Layout Functionality
+function initializeYouTubeLayoutClean() {
+    const youtubeLayout = document.querySelector('.youtube-layout-clean');
+    if (!youtubeLayout) return;
+    
+    console.log('Initializing Clean YouTube Layout');
+    
+    const mainPlayer = document.querySelector('#main-video-element');
+    const mainThumbnail = document.querySelector('.youtube-thumbnail');
+    const playButton = document.querySelector('#main-play-btn');
+    const videoInfo = document.querySelector('#main-video-info');
+    const sidebarItems = document.querySelectorAll('.youtube-sidebar-item');
+    
+    let currentVideoData = null;
+    
+    // Set initial video from first sidebar item
+    if (sidebarItems.length > 0) {
+        const firstVideo = sidebarItems[0];
+        loadVideoToPlayer(firstVideo);
+    }
+    
+    // Main play button click
+    if (playButton) {
+        playButton.addEventListener('click', function() {
+            playMainVideo();
+        });
+    }
+    
+    // Sidebar item clicks
+    sidebarItems.forEach((item, index) => {
+        item.addEventListener('click', function() {
+            // Remove active from all items
+            sidebarItems.forEach(i => i.classList.remove('active'));
+            // Add active to clicked item
+            this.classList.add('active');
+            
+            // Load this video to main player
+            loadVideoToPlayer(this);
+        });
+    });
+    
+    function loadVideoToPlayer(videoElement) {
+        const videoUrl = videoElement.dataset.videoUrl;
+        const videoTitle = videoElement.dataset.videoTitle;
+        const videoId = videoElement.dataset.videoId;
+        
+        console.log('Loading video:', videoTitle, videoUrl);
+        
+        if (!videoUrl) {
+            console.error('No video URL found');
+            return;
+        }
+        
+        // Store current video data
+        currentVideoData = {
+            url: videoUrl,
+            title: videoTitle,
+            id: videoId
+        };
+        
+        // Update main player
+        if (mainPlayer) {
+            mainPlayer.src = videoUrl;
+            mainPlayer.load();
+        }
+        
+        // Update video info
+        updateVideoInfo(videoElement);
+        
+        // Show thumbnail, hide video initially
+        if (mainThumbnail) {
+            mainThumbnail.style.display = 'flex';
+        }
+        if (mainPlayer) {
+            mainPlayer.style.display = 'none';
+        }
+    }
+    
+    function playMainVideo() {
+        if (!currentVideoData || !mainPlayer) {
+            console.error('No video data or player element');
+            return;
+        }
+        
+        console.log('Playing main video:', currentVideoData.title);
+        
+        // Hide thumbnail, show video
+        if (mainThumbnail) {
+            mainThumbnail.style.display = 'none';
+        }
+        
+        mainPlayer.style.display = 'block';
+        
+        // Test if URL is accessible and play
+        fetch(currentVideoData.url, { method: 'HEAD' })
+            .then(response => {
+                console.log('Video URL test - Status:', response.status);
+                if (response.ok) {
+                    return mainPlayer.play();
+                } else {
+                    throw new Error('Video not accessible');
+                }
+            })
+            .then(() => {
+                console.log('Video playing successfully');
+            })
+            .catch(error => {
+                console.error('Error playing video:', error);
+                showVideoError();
+            });
+    }
+    
+    function updateVideoInfo(videoElement) {
+        const title = videoElement.dataset.videoTitle;
+        const description = videoElement.dataset.videoDescription;
+        const duration = videoElement.dataset.videoDuration;
+        const category = videoElement.dataset.videoCategory;
+        
+        if (videoInfo) {
+            const titleElement = videoInfo.querySelector('.youtube-title');
+            if (titleElement) {
+                titleElement.textContent = title || 'Video Title';
+            }
+            
+            // Update description
+            const descElement = videoInfo.querySelector('.youtube-description p');
+            if (descElement) {
+                if (description && description.trim()) {
+                    descElement.textContent = description;
+                    descElement.parentElement.style.display = 'block';
+                } else {
+                    descElement.parentElement.style.display = 'none';
+                }
+            }
+            
+            // Update metadata
+            const metaElement = videoInfo.querySelector('.youtube-meta');
+            if (metaElement) {
+                // Get current date
+                const dateElement = metaElement.querySelector('.youtube-date');
+                let metaHTML = dateElement ? dateElement.outerHTML : '<span class="youtube-date">Today</span>';
+                
+                // Add duration if available
+                if (duration && duration.trim()) {
+                    metaHTML += '<span class="youtube-duration">• ' + duration + '</span>';
+                }
+                
+                // Add category if available
+                if (category && category.trim()) {
+                    metaHTML += '<span class="youtube-category">• ' + category + '</span>';
+                }
+                
+                metaElement.innerHTML = metaHTML;
+            }
+        }
+    }
+    
+    function showVideoError() {
+        if (mainThumbnail) {
+            mainThumbnail.style.display = 'flex';
+            mainThumbnail.innerHTML = `
+                <div style="text-align: center; color: white; padding: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <h3 style="margin: 0 0 8px 0;">Video Unavailable</h3>
+                    <p style="margin: 0; font-size: 14px; opacity: 0.8;">This video cannot be played at the moment.</p>
+                </div>
+            `;
+        }
+        
+        if (mainPlayer) {
+            mainPlayer.style.display = 'none';
+        }
+    }
+    
+    // Search functionality for YouTube layout
+    const searchInput = document.querySelector('#video-search');
+    const searchBtn = document.querySelector('#video-search-btn');
+    
+    if (searchInput && searchBtn) {
+        function performSearch() {
+            const searchTerm = searchInput.value.toLowerCase();
+            console.log('Searching for:', searchTerm);
+            
+            sidebarItems.forEach(item => {
+                const title = item.dataset.videoTitle.toLowerCase();
+                const shouldShow = !searchTerm || title.includes(searchTerm);
+                item.style.display = shouldShow ? 'flex' : 'none';
+            });
+        }
+        
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        // Real-time search
+        searchInput.addEventListener('input', function() {
+            clearTimeout(window.searchTimeout);
+            window.searchTimeout = setTimeout(performSearch, 300);
+        });
+    }
+}
 
 // Additional utility functions for external use
 function playVideo(videoCard) {

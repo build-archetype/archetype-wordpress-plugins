@@ -33,8 +33,12 @@ docker-compose exec wpcli wp core install \
     --admin_email="dev@archetype.com" \
     --skip-email
 
-# Activate all plugins
-echo "🔌 Activating plugins..."
+# Install and activate Elementor
+echo "🎨 Installing Elementor..."
+docker-compose exec wpcli wp plugin install elementor --activate
+
+# Activate all our custom plugins
+echo "🔌 Activating custom plugins..."
 docker-compose exec wpcli wp plugin activate wp-ant-media-stream-access
 docker-compose exec wpcli wp plugin activate wp-video-library
 docker-compose exec wpcli wp plugin activate wp-rocket-chat-embed
@@ -53,6 +57,14 @@ docker-compose exec wpcli wp config set WP_DEBUG_LOG true --raw
 docker-compose exec wpcli wp config set WP_DEBUG_DISPLAY false --raw
 docker-compose exec wpcli wp config set SCRIPT_DEBUG true --raw
 
+# Create a test page with our widgets
+echo "📄 Creating test page..."
+docker-compose exec wpcli wp post create \
+    --post_type=page \
+    --post_title="Plugin Test Page" \
+    --post_status=publish \
+    --post_content="<!-- wp:heading --><h2>Test Your Plugins Here</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Use Elementor to add stream and chat widgets to this page.</p><!-- /wp:paragraph -->"
+
 echo ""
 echo "🎉 Development environment is ready!"
 echo ""
@@ -61,10 +73,14 @@ echo "   WordPress Site: http://localhost:8080"
 echo "   Admin Panel: http://localhost:8080/wp-admin"
 echo "   Username: admin"
 echo "   Password: password"
-echo "   phpMyAdmin: http://localhost:8081"
+echo "   phpMyAdmin: http://localhost:8082"
+echo "   Test Page: http://localhost:8080/plugin-test-page"
 echo ""
 echo "🔄 Your plugins are now hot-reloaded!"
 echo "   Any changes you make to the plugin files will be immediately visible."
+echo ""
+echo "🎨 Elementor is installed and ready!"
+echo "   Edit the test page with Elementor to test your widgets."
 echo ""
 echo "📝 Useful Commands:"
 echo "   Start: docker-compose up -d"

@@ -3,7 +3,7 @@
  * Plugin Name: Ant Media Stream Access
  * Plugin URI: https://archetype.services
  * Description: Advanced stream access control with JWT authentication, tier-based routing, iframe embedding, and real-time chat integration for Ant Media Server.
- * Version: 2.0.0
+ * Version: 2.0.57
  * Author: Archetype Services
  * Author URI: https://archetype.services
  * Text Domain: ant-media-stream-access
@@ -19,7 +19,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AMSA_VERSION', '2.0.0');
+define('AMSA_VERSION', '2.0.62');
 define('AMSA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('AMSA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AMSA_PLUGIN_FILE', __FILE__);
@@ -33,6 +33,8 @@ require_once AMSA_PLUGIN_DIR . 'includes/stream-player.php';
 require_once AMSA_PLUGIN_DIR . 'includes/analytics.php';
 require_once AMSA_PLUGIN_DIR . 'includes/settings.php';
 require_once AMSA_PLUGIN_DIR . 'includes/shortcode.php';
+require_once AMSA_PLUGIN_DIR . 'includes/wordpress-heartbeat.php';
+require_once AMSA_PLUGIN_DIR . 'includes/websocket-integration.php';
 
 // Safety check for critical functions to prevent fatal errors
 if (!function_exists('ant_media_log')) {
@@ -48,7 +50,7 @@ if (!function_exists('ant_media_log')) {
 function amsa_check_loaded() {
     $required_functions = [
         'render_stream_player',
-        'should_display_stream', 
+        'should_display_ant_media_stream', 
         'generate_stream_token'
     ];
     
@@ -74,11 +76,20 @@ function amsa_enqueue_assets() {
     // Check if stream shortcode might be used
     $should_enqueue = false;
     
-    // Check current post
+    // Check current post for shortcodes
     global $post;
     if ($post && (has_shortcode($post->post_content, 'antmedia_stream') || 
-                  has_shortcode($post->post_content, 'antmedia_stream_direct'))) {
+                  has_shortcode($post->post_content, 'antmedia_stream_direct') ||
+                  has_shortcode($post->post_content, 'antmedia_simple'))) {
         $should_enqueue = true;
+    }
+    
+    // Check if we're using Elementor and have stream widgets
+    if (!$should_enqueue && defined('ELEMENTOR_VERSION')) {
+        // Always load on Elementor pages since widgets might be present
+        if (is_page() || is_single() || is_home() || is_front_page()) {
+            $should_enqueue = true;
+        }
     }
     
     // Check if we're on a page that might use the shortcode
@@ -293,6 +304,11 @@ function amsa_activate() {
             add_option('amsa_free_access_enabled', false);
         }
         
+        // Initialize stream status flag for offline message display (hook-based system)
+        if (!get_option('amsa_streams_currently_live')) {
+            add_option('amsa_streams_currently_live', false);
+        }
+        
         // Always update version to current
         update_option('amsa_version', AMSA_VERSION);
         
@@ -312,9 +328,10 @@ function amsa_activate() {
 register_activation_hook(__FILE__, 'amsa_activate');
 
 /**
- * Check if plugin was just activated and show notice
+ * Check if plugin was just activated/updated and show notice
  */
 add_action('admin_notices', function() {
+    // Just activated notice
     if (get_option('amsa_just_activated')) {
         delete_option('amsa_just_activated');
         $settings_url = admin_url('options-general.php?page=ant-media-stream-access');
@@ -323,6 +340,28 @@ add_action('admin_notices', function() {
             <p>
                 <strong>Ant Media Stream Access v<?php echo AMSA_VERSION; ?> activated successfully!</strong>
                 <a href="<?php echo esc_url($settings_url); ?>">Configure Settings</a>
+            </p>
+        </div>
+        <?php
+    }
+    
+    // Just updated notice
+    if (get_option('amsa_just_updated')) {
+        $update_info = get_option('amsa_just_updated');
+        delete_option('amsa_just_updated');
+        $settings_url = admin_url('options-general.php?page=ant-media-stream-access');
+        ?>
+        <div class="notice notice-info is-dismissible">
+            <p>
+                <strong>✅ Ant Media Stream Access updated successfully!</strong><br>
+                <span style="color: #666;">
+                    Updated from v<?php echo esc_html($update_info['from']); ?> to v<?php echo esc_html($update_info['to']); ?>
+                    • Plugin remained active during update
+                    • All settings preserved
+                </span>
+                <br>
+                <a href="<?php echo esc_url($settings_url); ?>">View Settings</a> | 
+                <a href="<?php echo esc_url($settings_url); ?>#debug">View Debug Logs</a>
             </p>
         </div>
         <?php
@@ -378,8 +417,8 @@ add_action('elementor/widgets/register', function($widgets_manager) {
         $widget_file = AMSA_PLUGIN_DIR . 'elementor-widgets/ant-media-stream-widget.php';
         if (file_exists($widget_file)) {
             require_once $widget_file;
-            if (class_exists('Elementor\Ant_Media_Stream_Widget')) {
-                $widgets_manager->register(new \Elementor\Ant_Media_Stream_Widget());
+            if (class_exists('Ant_Media_Stream_Widget')) {
+                $widgets_manager->register(new Ant_Media_Stream_Widget());
             }
         }
         
@@ -388,7 +427,7 @@ add_action('elementor/widgets/register', function($widgets_manager) {
         if (file_exists($combined_widget_file)) {
             require_once $combined_widget_file;
             if (class_exists('Stream_Chat_Combined_Widget')) {
-                $widgets_manager->register(new \Stream_Chat_Combined_Widget());
+                $widgets_manager->register(new Stream_Chat_Combined_Widget());
             }
         }
     } catch (Exception $e) {
@@ -405,17 +444,35 @@ function amsa_check_version() {
         
         // Force update if version is different
         if (version_compare($installed_version, AMSA_VERSION, '!=')) {
+            // Store update info for admin notice
+            update_option('amsa_just_updated', [
+                'from' => $installed_version,
+                'to' => AMSA_VERSION,
+                'timestamp' => time()
+            ]);
+            
+            // Run update procedures
             amsa_update($installed_version);
+            
+            // Update stored version
             update_option('amsa_version', AMSA_VERSION);
             
             // Clear any cached data
             wp_cache_flush();
             
             // Log the update
-            error_log("Ant Media Stream Access: Updated from {$installed_version} to " . AMSA_VERSION);
+            error_log("Ant Media Stream Access: Successfully updated from {$installed_version} to " . AMSA_VERSION);
+            
+            // Log to plugin debug system
+            if (function_exists('ant_media_log')) {
+                ant_media_log("Plugin updated from v{$installed_version} to v" . AMSA_VERSION, 'info');
+            }
         }
     } catch (Exception $e) {
         error_log('Ant Media Stream Access version check error: ' . $e->getMessage());
+        if (function_exists('ant_media_log')) {
+            ant_media_log("Update check failed: " . $e->getMessage(), 'error');
+        }
     }
 }
 // Run on multiple hooks to ensure it catches updates
@@ -430,6 +487,9 @@ function amsa_update($from_version) {
     try {
         error_log("Ant Media Stream Access: Running update from {$from_version} to " . AMSA_VERSION);
         
+        // Preserve activation status during update
+        $was_active = is_plugin_active(AMSA_PLUGIN_BASENAME);
+        
         // Flush rewrite rules for any new functionality
         flush_rewrite_rules();
         
@@ -438,23 +498,130 @@ function amsa_update($from_version) {
             AMSA_Database::create_tables();
         }
         
+        // Ensure all current options exist (for new installations and updates)
+        $default_options = [
+            'ant_media_server_url' => '',
+            'ant_media_jwt_secret' => '',
+            'ant_media_app_name' => 'live',
+            'ant_media_enabled' => 'true',
+            'ant_media_debug_mode' => true,
+            'ant_media_token_expiry' => 3600,
+            'ant_media_streams_config' => json_encode([
+                'platinum' => 'stream_platinum',
+                'gold' => 'stream_gold',
+                'silver' => 'stream_silver'
+            ])
+        ];
+        
+        foreach ($default_options as $option_name => $default_value) {
+            if (!get_option($option_name)) {
+                add_option($option_name, $default_value);
+            }
+        }
+        
         // Version-specific updates
         if (version_compare($from_version, '2.0.0', '<')) {
             // Version 2.0.0 adds enhanced streaming features
-            // Ensure all options exist
-            if (!get_option('ant_media_debug_mode')) {
-                add_option('ant_media_debug_mode', true);
-            }
-            
             if (function_exists('ant_media_log')) {
                 ant_media_log('Updated to version 2.0.0 with enhanced streaming features', 'info');
             }
-            
-            error_log('Ant Media Stream Access: Successfully updated to 2.0.0 - Enhanced streaming features');
         }
+        
+        if (version_compare($from_version, '2.0.30', '<')) {
+            // Versions 2.0.30+ have improved API integration
+            if (function_exists('ant_media_log')) {
+                ant_media_log('Updated with improved API integration and IP whitelisting support', 'info');
+            }
+        }
+        
+        if (version_compare($from_version, '2.0.33', '<')) {
+            // Version 2.0.33 adds connection testing
+            if (function_exists('ant_media_log')) {
+                ant_media_log('Updated with API connection testing and debugging features', 'info');
+            }
+        }
+        
+        if (version_compare($from_version, '2.0.34', '<')) {
+            // Version 2.0.34 adds seamless update handling
+            if (function_exists('ant_media_log')) {
+                ant_media_log('Updated with seamless update handling - plugin stays active during updates', 'info');
+            }
+        }
+        
+        if (version_compare($from_version, '2.0.35', '<')) {
+            // Version 2.0.35 adds faster real-time stream status detection
+            if (function_exists('ant_media_log')) {
+                ant_media_log('Updated with faster real-time stream status detection - chat responds immediately to stream changes', 'info');
+            }
+        }
+        
+        // Ensure plugin stays active if it was active before update
+        if ($was_active && !is_plugin_active(AMSA_PLUGIN_BASENAME)) {
+            activate_plugin(AMSA_PLUGIN_BASENAME);
+        }
+        
+        error_log("Ant Media Stream Access: Update completed successfully from {$from_version} to " . AMSA_VERSION);
+        
     } catch (Exception $e) {
         error_log('Ant Media Stream Access update error: ' . $e->getMessage());
+        if (function_exists('ant_media_log')) {
+            ant_media_log("Update failed: " . $e->getMessage(), 'error');
+        }
     } catch (Error $e) {
         error_log('Ant Media Stream Access update fatal error: ' . $e->getMessage());
+        if (function_exists('ant_media_log')) {
+            ant_media_log("Update fatal error: " . $e->getMessage(), 'error');
+        }
     }
+}
+
+/**
+ * Prevent WordPress from deactivating plugin during updates
+ */
+add_filter('pre_update_option_active_plugins', function($new_value, $old_value) {
+    // If our plugin was active and is being removed, add it back
+    $our_plugin = AMSA_PLUGIN_BASENAME;
+    
+    if (in_array($our_plugin, $old_value) && !in_array($our_plugin, $new_value)) {
+        // Check if this is during an update (not manual deactivation)
+        if (get_option('amsa_just_updated') || defined('WP_UPGRADING')) {
+            $new_value[] = $our_plugin;
+            error_log('Ant Media Stream Access: Prevented deactivation during update');
+        }
+    }
+    
+    return $new_value;
+}, 10, 2); 
+
+// Hook system to update stream status for offline message display
+add_action('init', 'amsa_setup_offline_message_hooks', 15);
+
+function amsa_setup_offline_message_hooks() {
+    // Listen for our own stream events and update the global status
+    add_action('ant_media_stream_status_updated', 'amsa_handle_offline_message_update', 10, 3);
+    add_action('amsa_stream_status_change', 'amsa_handle_offline_message_change', 10, 3);
+}
+
+/**
+ * Handle stream status updates for offline message display
+ */
+function amsa_handle_offline_message_update($stream_id, $status, $error = null) {
+    $is_live = ($status === 'playing' || $status === 'broadcasting' || $status === 'live');
+    
+    // Update our global flag
+    update_option('amsa_streams_currently_live', $is_live);
+    
+    ant_media_log("🎬 OFFLINE MESSAGE: {$stream_id} status '{$status}' -> setting streams_live to " . ($is_live ? 'TRUE' : 'FALSE'), 'info');
+}
+
+/**
+ * Handle stream status changes for offline message display
+ */
+function amsa_handle_offline_message_change($stream_id, $user_id, $action) {
+    $is_live = ($action === 'play' || $action === 'playing');
+    
+    // Update our global flag
+    update_option('amsa_streams_currently_live', $is_live);
+    
+    ant_media_log("🎬 OFFLINE MESSAGE: {$stream_id} action '{$action}' -> setting streams_live to " . ($is_live ? 'TRUE' : 'FALSE'), 'info');
 } 

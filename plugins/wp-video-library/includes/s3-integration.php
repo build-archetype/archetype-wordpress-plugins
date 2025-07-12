@@ -28,7 +28,40 @@ class Video_Library_S3 {
         $this->region = get_option('video_library_s3_region', 'us-east-1');
         $this->endpoint = get_option('video_library_s3_endpoint');
         
+        // Auto-extract bucket name from endpoint if not explicitly set
+        if (empty($this->bucket) && !empty($this->endpoint)) {
+            $this->bucket = $this->extract_bucket_from_endpoint($this->endpoint);
+            video_library_log("Auto-extracted bucket name from endpoint: {$this->bucket}", 'info');
+        }
+        
         video_library_log("S3 Integration initialized with bucket: {$this->bucket}", 'info');
+    }
+    
+    /**
+     * Extract bucket name from DigitalOcean Spaces or S3 endpoint
+     */
+    private function extract_bucket_from_endpoint($endpoint) {
+        // Remove protocol
+        $clean_endpoint = str_replace(['http://', 'https://'], '', $endpoint);
+        
+        // For DigitalOcean Spaces: bucket.region.digitaloceanspaces.com
+        if (strpos($clean_endpoint, '.digitaloceanspaces.com') !== false) {
+            $parts = explode('.', $clean_endpoint);
+            if (count($parts) >= 3) {
+                return $parts[0]; // First part is the bucket name
+            }
+        }
+        
+        // For AWS S3: bucket.s3.region.amazonaws.com
+        if (strpos($clean_endpoint, '.amazonaws.com') !== false) {
+            $parts = explode('.', $clean_endpoint);
+            if (count($parts) >= 4 && $parts[1] === 's3') {
+                return $parts[0]; // First part is the bucket name
+            }
+        }
+        
+        video_library_log("Could not extract bucket name from endpoint: {$endpoint}", 'warning');
+        return '';
     }
     
     /**
@@ -39,6 +72,12 @@ class Video_Library_S3 {
         
         if (!$expiry) {
             $expiry = get_option('video_library_presigned_expiry', 3600);
+        }
+        
+        // Ensure expiry is an integer to prevent type errors
+        $expiry = (int) $expiry;
+        if ($expiry <= 0) {
+            $expiry = 3600; // Default to 1 hour
         }
         
         if (empty($instance->access_key) || empty($instance->secret_key) || empty($instance->bucket)) {

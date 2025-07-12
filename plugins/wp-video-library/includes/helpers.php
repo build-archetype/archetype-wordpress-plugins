@@ -83,13 +83,34 @@ function set_video_library_state($state) {
 }
 
 function should_display_video_library() {
+    // Always allow in Elementor editor mode
+    if (defined('ELEMENTOR_VERSION') && \Elementor\Plugin::$instance->editor->is_edit_mode()) {
+        return true;
+    }
+    
+    // Always allow in WordPress admin (for admin video library page)
+    if (is_admin()) {
+        return true;
+    }
+    
     $library_enabled = get_option('video_library_enabled', 'true') === 'true';
     $user_logged_in = is_user_logged_in();
-    $has_required_settings = !empty(get_option('video_library_s3_bucket'));
     
-    // Default display logic - only require bucket name for display
-    // Access key is only needed for actual video playback
-    $should_display = $library_enabled && $user_logged_in && $has_required_settings;
+    // Check if we have S3 configuration - bucket name OR endpoint with embedded bucket
+    $s3_bucket = get_option('video_library_s3_bucket', '');
+    $s3_endpoint = get_option('video_library_s3_endpoint', '');
+    $s3_access_key = get_option('video_library_s3_access_key', '');
+    
+    // We have valid S3 config if:
+    // 1. We have a bucket name set, OR
+    // 2. We have an endpoint that contains a bucket name (like bucket.region.digitaloceanspaces.com), OR  
+    // 3. We have access keys (indicating S3 is configured)
+    $has_s3_config = !empty($s3_bucket) || 
+                     !empty($s3_endpoint) || 
+                     !empty($s3_access_key);
+    
+    // Default display logic - require basic S3 config
+    $should_display = $library_enabled && $user_logged_in && $has_s3_config;
     
     // Allow filtering of display logic
     return apply_filters('video_library_should_display', $should_display);
@@ -265,26 +286,33 @@ function get_video_tags($video_id) {
 }
 
 /**
- * Logging function
+ * Enhanced logging function with structured data and debug support
  */
 function video_library_log($message, $level = 'info') {
-    if (!get_option('video_library_debug_mode', false)) {
-        return;
-    }
-    
     $timestamp = date('Y-m-d H:i:s');
-    $log_message = "[$timestamp] [$level] $message";
     
-    // Store in transient for admin display
+    // Create structured log entry
+    $log_entry = [
+        'timestamp' => $timestamp,
+        'level' => $level,
+        'message' => $message
+    ];
+    
+    // Always store in transient for admin display (even if debug disabled)
     $logs = get_transient('video_library_logs');
     if (!is_array($logs)) $logs = [];
-    $logs[] = $log_message;
+    $logs[] = $log_entry;
     if (count($logs) > 100) array_shift($logs);
-    set_transient('video_library_logs', $logs, 60 * 60 * 24);
+    set_transient('video_library_logs', $logs, 60 * 60 * 24); // 24 hour retention
     
-    // Also log to WordPress debug log if WP_DEBUG is enabled
-    if (defined('WP_DEBUG') && WP_DEBUG) {
-        error_log("Video Library: $log_message");
+    // Always log errors and warnings to WordPress error log
+    if (in_array($level, ['error', 'warning'])) {
+        error_log("Video Library [$level]: $message");
+    }
+    
+    // Log debug/info messages only if debug mode is enabled
+    if (get_option('video_library_debug_mode', false) && in_array($level, ['info', 'debug'])) {
+        error_log("Video Library [$level]: $message");
     }
 }
 

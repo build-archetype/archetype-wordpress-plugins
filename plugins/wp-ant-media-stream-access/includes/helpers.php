@@ -223,17 +223,27 @@ function get_ant_media_stream_state() {
  */
 function build_ant_media_iframe_url($stream_id, $options = []) {
     $server_url = $options['server_url'] ?? get_option('ant_media_server_url');
-    $app_name = $options['app_name'] ?? 'live';
+    $app_name = $options['app_name'] ?? get_option('ant_media_app_name', 'live');
     
     if (empty($server_url) || empty($stream_id)) {
         return false;
     }
     
+    // Clean up server URL - remove trailing slashes and fix any colon issues
     $server_url = rtrim($server_url, '/');
+    // Fix common copy/paste error where URLs have extra colon like "domain.com:/path"
+    // Split on protocol to avoid affecting it
+    if (preg_match('/^(https?:\/\/)(.+)/', $server_url, $matches)) {
+        $protocol = $matches[1];
+        $rest = $matches[2];
+        // Fix any colon-slash that's not part of protocol
+        $rest = str_replace(':/', '/', $rest);
+        $server_url = $protocol . $rest;
+    }
     
-    // Build iframe URL parameters
+    // Build iframe URL parameters - use 'id' to match Ant Media's standard format
     $params = [
-        'name' => $stream_id,
+        'id' => $stream_id,
         'autoplay' => $options['autoplay'] ?? 'true',
         'mute' => $options['muted'] ?? 'true',
         'playOrder' => $options['play_order'] ?? 'webrtc,hls'
@@ -254,43 +264,127 @@ function build_ant_media_iframe_url($stream_id, $options = []) {
 /**
  * Stream Status Check
  */
-function check_ant_media_stream_status($stream_id, $server_url = null, $app_name = 'live') {
+function check_ant_media_stream_status($stream_id, $server_url = null, $app_name = null) {
     if (!$server_url) {
         $server_url = get_option('ant_media_server_url');
     }
     
+    if (!$app_name) {
+        $app_name = get_option('ant_media_app_name', 'live');
+    }
+    
     if (empty($server_url) || empty($stream_id)) {
+        ant_media_log("❌ API: Stream status check failed: missing server_url or stream_id", 'error');
         return false;
     }
     
     $server_url = rtrim($server_url, '/');
     $api_url = $server_url . '/' . $app_name . '/rest/v2/broadcasts/' . $stream_id;
     
-    ant_media_log("Checking stream status for {$stream_id} at {$api_url}", 'debug');
+    ant_media_log("🌐 API: Calling {$api_url}", 'debug');
     
+    // FORCE DEBUG - Show API URL being called
+    error_log("🚨 ANT MEDIA DEBUG - API URL: {$api_url}");
+    
+    $start_time = microtime(true);
     $response = wp_remote_get($api_url, [
         'timeout' => 10,
         'headers' => [
             'Accept' => 'application/json'
         ]
     ]);
+    $end_time = microtime(true);
+    $api_duration = round(($end_time - $start_time) * 1000, 2);
     
     if (is_wp_error($response)) {
-        ant_media_log("Stream status check failed for {$stream_id}: " . $response->get_error_message(), 'error');
+        $error_msg = $response->get_error_message();
+        ant_media_log("❌ API: Request failed for {$stream_id} after {$api_duration}ms: {$error_msg}", 'error');
+        // FALLBACK FOR LIVE STREAMING: If API fails, assume offline to avoid false positives
+        ant_media_log("⚠️  API: Defaulting to FALSE (offline) due to API error - better than false positive", 'warning');
         return false;
     }
     
+    $http_code = wp_remote_retrieve_response_code($response);
     $body = wp_remote_retrieve_body($response);
+    $response_size = strlen($body);
+    
+    ant_media_log("📡 API: Response in {$api_duration}ms - HTTP {$http_code}, {$response_size} bytes", 'info');
+    
+    // Log raw response for debugging
+    ant_media_log("📄 API: Raw response body: " . substr($body, 0, 500) . ($response_size > 500 ? '...' : ''), 'debug');
+    
     $data = json_decode($body, true);
+    if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+        ant_media_log("❌ API: Invalid JSON response for {$stream_id}: " . json_last_error_msg(), 'error');
+        ant_media_log("📄 API: Raw non-JSON body: " . $body, 'error');
+        return false; // Failsafe: assume offline for invalid responses
+    }
+    
+    // Log the full parsed API response for debugging
+    ant_media_log("📊 API: Parsed response for {$stream_id}: " . json_encode($data), 'debug');
+    
+    // FORCE LOG FOR DEBUGGING - always show this even in production
+    error_log("🚨 ANT MEDIA DEBUG - Stream {$stream_id} API Response: " . json_encode($data));
     
     if (isset($data['status'])) {
         $status = $data['status'];
-        ant_media_log("Stream {$stream_id} status: {$status}", 'info');
-        return $status === 'broadcasting';
+        ant_media_log("🎯 API: Stream {$stream_id} status: '{$status}'", 'info');
+        
+        // EXPANDED: Check for ALL possible "live" status values from Ant Media Server
+        $live_statuses = [
+            'broadcasting', 'live', 'playing', 'active', 'started', 
+            'publish_started', 'stream_started', 'online', 'ready',
+            'created', 'publishing' // Some streams show 'created' when live
+        ];
+        $is_live = in_array(strtolower($status), $live_statuses);
+        
+        // BACKUP CHECK: If status seems offline but we have other indicators, check them
+        if (!$is_live) {
+            // Check if stream has active viewers or bitrate (indicates it's actually live)
+            $has_viewers = isset($data['hlsViewerCount']) && $data['hlsViewerCount'] > 0;
+            $has_webrtc_viewers = isset($data['webRTCViewerCount']) && $data['webRTCViewerCount'] > 0; 
+            $has_bitrate = isset($data['bitrate']) && $data['bitrate'] > 0;
+            $has_speed = isset($data['speed']) && $data['speed'] > 0;
+            
+            if ($has_viewers || $has_webrtc_viewers || $has_bitrate || $has_speed) {
+                ant_media_log("🔄 API: Status '{$status}' seems offline, but has active indicators - assuming LIVE", 'warning');
+                $is_live = true;
+            }
+        }
+        
+        // Log additional useful fields if available
+        if (isset($data['streamId'])) {
+            ant_media_log("🆔 API: Confirmed streamId: {$data['streamId']}", 'debug');
+        }
+        if (isset($data['type'])) {
+            ant_media_log("📺 API: Stream type: {$data['type']}", 'debug');
+        }
+        if (isset($data['bitrate'])) {
+            ant_media_log("📊 API: Bitrate: {$data['bitrate']}", 'debug');
+        }
+        if (isset($data['speed'])) {
+            ant_media_log("⚡ API: Speed: {$data['speed']}", 'debug');
+        }
+        
+        ant_media_log("✅ API: Final result for {$stream_id}: " . ($is_live ? 'LIVE' : 'OFFLINE') . 
+                     " (status: '{$status}')", 'info');
+        return $is_live;
+    } else {
+        ant_media_log("⚠️  API: No 'status' field in response for {$stream_id}", 'warning');
+        ant_media_log("📄 API: Available fields: " . implode(', ', array_keys($data ?: [])), 'warning');
+        
+        // Check for error messages
+        if (isset($data['message'])) {
+            ant_media_log("📢 API: Message from server: {$data['message']}", 'warning');
+        }
+        if (isset($data['success'])) {
+            ant_media_log("🎯 API: Success flag: " . ($data['success'] ? 'true' : 'false'), 'warning');
+        }
+        
+        // Default to false if no status found
+        ant_media_log("❌ API: Defaulting to OFFLINE due to missing status field", 'warning');
+        return false;
     }
-    
-    ant_media_log("Stream status check for {$stream_id} returned no status data", 'warning');
-    return false;
 }
 
 /**
@@ -320,7 +414,7 @@ function ant_media_log($message, $level = 'info') {
 /**
  * Get time ago string
  */
-function get_time_ago($datetime) {
+function amsa_get_time_ago($datetime) {
     $time = time() - strtotime($datetime);
     
     if ($time < 60) return 'just now';

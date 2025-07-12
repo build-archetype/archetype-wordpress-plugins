@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Video Library
+ * Plugin Name: Simple Video Library
  * Plugin URI: https://archetype.services
- * Description: A comprehensive video library system for WordPress with DigitalOcean Spaces integration.
- * Version: 1.2.6
+ * Description: A simple, modern video library system for WordPress with DigitalOcean Spaces integration.
+ * Version: 2.1.0
  * Author: Archetype Services
  * Author URI: https://archetype.services
  * Text Domain: video-library
@@ -19,7 +19,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('VL_VERSION', '1.2.6');
+define('VL_VERSION', '1.7.0');
 define('VL_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('VL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('VL_PLUGIN_FILE', __FILE__);
@@ -35,6 +35,7 @@ require_once VL_PLUGIN_DIR . 'includes/analytics.php';
 require_once VL_PLUGIN_DIR . 'includes/settings.php';
 require_once VL_PLUGIN_DIR . 'includes/shortcode.php';
 require_once VL_PLUGIN_DIR . 'includes/post-types.php';
+require_once VL_PLUGIN_DIR . 'includes/admin-page.php';
 
 // Safety check for critical functions to prevent fatal errors
 if (!function_exists('video_library_log')) {
@@ -329,7 +330,7 @@ add_action('admin_notices', function() {
         ?>
         <div class="notice notice-success is-dismissible">
             <p>
-                <strong>Video Library v<?php echo VL_VERSION; ?> activated successfully!</strong>
+                <strong>Simple Video Library v<?php echo VL_VERSION; ?> activated successfully!</strong>
                 <a href="<?php echo esc_url($settings_url); ?>">Configure Settings</a>
             </p>
         </div>
@@ -366,8 +367,8 @@ add_action('admin_notices', function() {
             ?>
             <div class="notice notice-warning">
                 <p>
-                    <strong>Video Library:</strong> Please configure the S3 storage settings in 
-                    <a href="<?php echo esc_url($settings_url); ?>">Settings → Video Library</a>
+                    <strong>Simple Video Library:</strong> Please configure the S3 storage settings in 
+                    <a href="<?php echo esc_url($settings_url); ?>">Settings → Simple Video Library</a>
                 </p>
             </div>
             <?php
