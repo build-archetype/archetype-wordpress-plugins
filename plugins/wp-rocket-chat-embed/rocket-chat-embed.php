@@ -2,7 +2,7 @@
 /*
 Plugin Name: Rocket.Chat Embed for WordPress
 Description: Easily embed Rocket.Chat in your WordPress site with SSO, user sync, and more.
-Version: 1.0.87
+Version: 1.0.88
 Author: Build Archetype Solutions (https://buildarchetype.dev)
 
 This plugin is not affiliated with or endorsed by Rocket.Chat. Rocket.Chat is a registered trademark of Rocket.Chat Technologies Corp.
@@ -11,7 +11,7 @@ This plugin is not affiliated with or endorsed by Rocket.Chat. Rocket.Chat is a 
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-if (!defined('RCE_VERSION')) define('RCE_VERSION', '1.0.87');
+if (!defined('RCE_VERSION')) define('RCE_VERSION', '1.0.88');
 if (!defined('RCE_PLUGIN_DIR')) define('RCE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 if (!defined('RCE_PLUGIN_URL')) define('RCE_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -21,129 +21,11 @@ require_once RCE_PLUGIN_DIR . 'includes/logging.php';
 require_once RCE_PLUGIN_DIR . 'includes/settings.php';
 require_once RCE_PLUGIN_DIR . 'includes/shortcode.php';
 
-// WordPress Heartbeat integration: Chat syncs automatically with Ant Media stream status
-// No separate polling needed - uses WordPress's built-in Heartbeat API (15-second intervals)
+// NEW: Include the clean stream integration system
+require_once RCE_PLUGIN_DIR . 'includes/stream-integration.php';
 
-// Hook-based stream status integration with Ant Media plugin
-add_action('init', 'rce_setup_stream_hooks', 20);
-
-function rce_setup_stream_hooks() {
-    // Listen for ant-media stream events and update our simple flag
-    add_action('ant_media_stream_status_updated', 'rce_handle_stream_status_update', 10, 3);
-    add_action('amsa_stream_status_change', 'rce_handle_stream_status_change', 10, 3);
-    
-    // Also hook into WebSocket updates via JavaScript (if available)
-    add_action('wp_footer', 'rce_add_stream_status_listener');
-}
-
-/**
- * Handle stream status updates from ant-media plugin
- */
-function rce_handle_stream_status_update($stream_id, $status, $error = null) {
-    $is_live = ($status === 'playing' || $status === 'broadcasting' || $status === 'live');
-    
-    // Update our simple flag
-    update_option('amsa_streams_currently_live', $is_live);
-    
-    rocket_chat_log("🎯 STREAM HOOK: {$stream_id} status '{$status}' -> setting streams_live to " . ($is_live ? 'TRUE' : 'FALSE'), 'info');
-    
-    // Trigger real-time update via AJAX if possible
-    if (defined('DOING_AJAX') && DOING_AJAX) {
-        // Send immediate update to any listening chat widgets
-        wp_send_json_success([
-            'stream_status_changed' => true,
-            'any_live' => $is_live,
-            'stream_id' => $stream_id,
-            'status' => $status
-        ]);
-    }
-}
-
-/**
- * Handle stream status changes from ant-media plugin  
- */
-function rce_handle_stream_status_change($stream_id, $user_id, $action) {
-    $is_live = ($action === 'play' || $action === 'playing');
-    
-    // Update our simple flag
-    update_option('amsa_streams_currently_live', $is_live);
-    
-    rocket_chat_log("🎯 STREAM HOOK: {$stream_id} action '{$action}' -> setting streams_live to " . ($is_live ? 'TRUE' : 'FALSE'), 'info');
-}
-
-/**
- * Add JavaScript listener for real-time WebSocket updates
- */
-function rce_add_stream_status_listener() {
-    // Only add on pages with chat
-    if (!is_user_logged_in()) return;
-    
-    ?>
-    <script>
-    // Listen for WebSocket stream events from ant-media plugin
-    window.addEventListener('DOMContentLoaded', function() {
-        // Hook into existing updateChatVisibility function
-        if (typeof window.updateChatVisibility === 'function') {
-            const original = window.updateChatVisibility;
-            window.updateChatVisibility = function(isLive, source) {
-                console.log('🎯 RCE Hook: Stream status changed via', source, '- isLive:', isLive);
-                
-                // Update our WordPress option via AJAX
-                if (typeof rocketChatAjax !== 'undefined') {
-                    fetch(rocketChatAjax.ajaxurl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: new URLSearchParams({
-                            action: 'rce_update_stream_flag',
-                            nonce: rocketChatAjax.nonce,
-                            streams_live: isLive ? '1' : '0',
-                            source: source || 'websocket'
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log('🎯 RCE Hook: Updated WordPress stream flag via AJAX');
-                        }
-                    })
-                    .catch(err => console.warn('🎯 RCE Hook: AJAX update failed:', err));
-                }
-                
-                // Call original function
-                if (original) {
-                    original(isLive, source);
-                }
-            };
-        }
-        
-        console.log('🎯 RCE Hook: Stream status listener initialized');
-    });
-    </script>
-    <?php
-}
-
-/**
- * AJAX handler to update stream flag from JavaScript
- */
-add_action('wp_ajax_rce_update_stream_flag', 'rce_ajax_update_stream_flag');
-add_action('wp_ajax_nopriv_rce_update_stream_flag', 'rce_ajax_update_stream_flag');
-
-function rce_ajax_update_stream_flag() {
-    check_ajax_referer('rocket_chat_nonce', 'nonce');
-    
-    $streams_live = $_POST['streams_live'] === '1';
-    $source = sanitize_text_field($_POST['source'] ?? 'unknown');
-    
-    update_option('amsa_streams_currently_live', $streams_live);
-    
-    rocket_chat_log("🎯 STREAM AJAX: Updated streams_live to " . ($streams_live ? 'TRUE' : 'FALSE') . " from {$source}", 'info');
-    
-    wp_send_json_success([
-        'streams_live' => $streams_live,
-        'source' => $source,
-        'timestamp' => time()
-    ]);
-}
+// DEPRECATED: Old complex hook system (removed)
+// The new system uses clean WordPress hooks and events
 
 // Load Elementor widget if Elementor is active (modern method)
 add_action('elementor/widgets/register', function($widgets_manager) {

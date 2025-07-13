@@ -70,13 +70,63 @@ class Rocket_Chat_Embed_Widget extends Widget_Base {
         $this->end_controls_section();
     }
     protected function render() {
+        $settings = $this->get_settings_for_display();
+        
+        // Get server URL and validate
+        $host = rtrim(get_option('rocket_chat_host_url'), '/');
+        if (empty($host)) {
+            echo '<div class="rocket-chat-error">Rocket.Chat server not configured.</div>';
+            return;
+        }
+        
+        $channel = !empty($settings['channel']) ? $settings['channel'] : 'general';
+        $height = !empty($settings['height']) ? $settings['height'] : '400px';
+        $interface_mode = !empty($settings['interface_mode']) ? $settings['interface_mode'] : 'full';
+        $iframe_id = 'rocket-chat-iframe-' . uniqid();
+        $debug_output = '';
+        
+        // COMPREHENSIVE LOGIN DEBUG - Let's see exactly what's happening
+        $is_logged_in = is_user_logged_in();
+        $current_user = wp_get_current_user();
+        
+        rocket_chat_log("🔍 LOGIN DEBUG: is_user_logged_in() = " . ($is_logged_in ? 'TRUE' : 'FALSE'), 'info');
+        rocket_chat_log("🔍 LOGIN DEBUG: current_user->ID = " . ($current_user ? $current_user->ID : 'NULL'), 'info');
+        rocket_chat_log("🔍 LOGIN DEBUG: current_user->user_login = " . ($current_user ? $current_user->user_login : 'NULL'), 'info');
+        rocket_chat_log("🔍 LOGIN DEBUG: current_user->user_email = " . ($current_user ? $current_user->user_email : 'NULL'), 'info');
+        rocket_chat_log("🔍 LOGIN DEBUG: current_user->user_status = " . ($current_user ? $current_user->user_status : 'NULL'), 'info');
+        
+        // Add debug output to page if debug mode is enabled
+        if ($settings['show_debug'] === 'yes') {
+            $debug_output .= '<div class="rocket-chat-debug" style="background: #f0f0f0; padding: 10px; margin: 10px 0; border-left: 4px solid #0073aa;">';
+            $debug_output .= '<h4>🔍 Rocket Chat Login Debug</h4>';
+            $debug_output .= '<p><strong>WordPress Login Status:</strong> ' . ($is_logged_in ? 'LOGGED IN' : 'NOT LOGGED IN') . '</p>';
+            if ($current_user && $current_user->ID) {
+                $debug_output .= '<p><strong>User ID:</strong> ' . $current_user->ID . '</p>';
+                $debug_output .= '<p><strong>Username:</strong> ' . $current_user->user_login . '</p>';
+                $debug_output .= '<p><strong>Email:</strong> ' . ($current_user->user_email ?: 'NO EMAIL') . '</p>';
+                $debug_output .= '<p><strong>Display Name:</strong> ' . $current_user->display_name . '</p>';
+                $debug_output .= '<p><strong>User Status:</strong> ' . $current_user->user_status . '</p>';
+                
+                // Check Rocket Chat setup
+                $rocket_chat_user = get_user_meta($current_user->ID, 'rocket_chat_user_id', true);
+                $rocket_chat_password = get_user_meta($current_user->ID, 'rocket_chat_encrypted_password', true);
+                $debug_output .= '<p><strong>Rocket Chat User ID:</strong> ' . ($rocket_chat_user ?: 'NOT SET') . '</p>';
+                $debug_output .= '<p><strong>Rocket Chat Password:</strong> ' . ($rocket_chat_password ? 'SET' : 'NOT SET') . '</p>';
+            }
+            $debug_output .= '</div>';
+        }
+        
+        // Show debug output immediately
+        if ($debug_output) {
+            echo $debug_output;
+        }
+
         if (!is_user_logged_in()) {
             rocket_chat_log("Widget render attempted by non-logged-in user", 'info');
             echo '<p>Please log in to access the chat.</p>';
             return;
         }
 
-        $settings = $this->get_settings_for_display();
         $current_user = wp_get_current_user();
         $debug_output = '';
 
@@ -331,11 +381,227 @@ class Rocket_Chat_Embed_Widget extends Widget_Base {
         // Determine initial visibility based on stream integration setting
         $initial_display = '';
         $server_streams_live = false;
-        if ($settings['check_stream_status'] === 'yes' && function_exists('should_display_ant_media_stream')) {
-            // Simple check: Use WordPress option set by ant-media hooks
-            $server_streams_live = get_option('amsa_streams_currently_live', false);
+        if ($settings['check_stream_status'] === 'yes') {
+            // NEW: Use the clean stream integration system
+            if (function_exists('rocket_chat_stream_is_live')) {
+                $server_streams_live = rocket_chat_stream_is_live();
+                rocket_chat_log("💬 ELEMENTOR CHAT: Clean system check - streams live: " . ($server_streams_live ? 'true' : 'false'), 'info');
+            } else {
+                // Fallback: Direct WordPress option check if new system not available
+                // FIX: Use the same option name that ant-media plugin updates
+                $server_streams_live = get_option('amsa_streams_currently_live', false);
+                rocket_chat_log("💬 ELEMENTOR CHAT: Fallback check - streams live: " . ($server_streams_live ? 'true' : 'false'), 'warning');
+            }
             
-            rocket_chat_log("💬 ELEMENTOR CHAT: Hook-based status check - streams live: " . ($server_streams_live ? 'true' : 'false'), 'info');
+            // Start hidden if no streams are live
+            if (!$server_streams_live) {
+                $initial_display = 'display: none; ';
+                rocket_chat_log("💬 ELEMENTOR CHAT: No streams live - hiding widget initially", 'info');
+            } else {
+                rocket_chat_log("💬 ELEMENTOR CHAT: Streams are live - showing widget", 'info');
+            }
+        }
+        
+        // Check if user is logged in OR if streams are live (for public viewing)
+        if (!is_user_logged_in()) {
+            // Allow anonymous access when streams are live for public viewing
+            $server_streams_live = function_exists('rocket_chat_stream_is_live') ? rocket_chat_stream_is_live() : false;
+            
+            if ($server_streams_live) {
+                rocket_chat_log("Widget: Anonymous access granted - stream is live", 'info');
+                
+                // Create simple iframe for anonymous users (read-only chat)
+                $guest_iframe_url = $host . '/channel/' . $channel . '?layout=embedded';
+                
+                echo '<div id="' . esc_attr($iframe_id) . '-container" style="' . esc_attr($initial_display) . '">';
+                echo '<iframe id="' . esc_attr($iframe_id) . '" src="' . esc_url($guest_iframe_url) . '" width="100%" height="' . esc_attr($height) . '" frameborder="0" allowfullscreen></iframe>';
+                
+                // Add stream integration for anonymous users
+                if ($settings['check_stream_status'] === 'yes') {
+                    echo '<script>
+                    (function() {
+                        const containerEl = document.getElementById("' . esc_js($iframe_id) . '-container");
+                        if (!window.chatContainers) window.chatContainers = [];
+                        window.chatContainers.push({
+                            element: containerEl,
+                            id: "' . esc_js($iframe_id) . '-anonymous",
+                            show: function(reason) { 
+                                const timestamp = new Date().toISOString();
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Status changed to VISIBLE");
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Triggered by: " + reason);
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Container ID: ' . esc_js($iframe_id) . '-container");
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Container exists: " + (containerEl ? "YES" : "NO"));
+                                
+                                if (containerEl) {
+                                    containerEl.style.display = "block";
+                                    console.log("💬 [" + timestamp + "] Anonymous Chat: ✅ SHOWING container element");
+                                    console.log("💬 [" + timestamp + "] Anonymous Chat: container.style.display = " + containerEl.style.display);
+                                } else {
+                                    console.error("💬 [" + timestamp + "] Anonymous Chat: ❌ container element not found!");
+                                }
+                                
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Page visibility: " + document.visibilityState);
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Window focused: " + document.hasFocus());
+                            },
+                            hide: function(reason) { 
+                                const timestamp = new Date().toISOString();
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Status changed to HIDDEN");
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Triggered by: " + reason);
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Container ID: ' . esc_js($iframe_id) . '-container");
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Container exists: " + (containerEl ? "YES" : "NO"));
+                                
+                                if (containerEl) {
+                                    containerEl.style.display = "none";
+                                    console.log("💬 [" + timestamp + "] Anonymous Chat: ✅ HIDING container element");
+                                    console.log("💬 [" + timestamp + "] Anonymous Chat: container.style.display = " + containerEl.style.display);
+                                } else {
+                                    console.error("💬 [" + timestamp + "] Anonymous Chat: ❌ container element not found!");
+                                }
+                                
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Page visibility: " + document.visibilityState);
+                                console.log("💬 [" + timestamp + "] Anonymous Chat: Window focused: " + document.hasFocus());
+                            }
+                        });
+                        
+                        console.log("💬 Anonymous Chat: Real-time updates initialized for ' . esc_js($iframe_id) . '");
+                        console.log("💬 Anonymous Chat: Initial state - container display: " + (containerEl ? containerEl.style.display : "NOT_FOUND"));
+                        console.log("💬 Anonymous Chat: Initial state - server_streams_live: ' . ($server_streams_live ? 'true' : 'false') . '");
+                    })();
+                    </script>';
+                }
+                
+                echo '</div>';
+                rocket_chat_log("Widget: Anonymous chat rendered for live stream", 'info');
+                return;
+            } else {
+                rocket_chat_log("Widget render attempted by non-logged-in user", 'info');
+                return; // No chat when offline and not logged in
+            }
+        }
+
+        // Validate channel access before loading iframe
+        $api = get_rocket_chat_api();
+        $channel_accessible = false;
+        $room_type = 'channel'; // default
+        
+        // Check if the user can access the requested channel
+        if ($channel === 'general') {
+            $channel_accessible = true; // Everyone can access general
+        } else {
+            // Check if the channel exists and user has access
+            $channel_info = $api->get_channel_info($channel);
+            if ($channel_info) {
+                $channel_accessible = true;
+                $room_type = $channel_info['room_type'];
+                rocket_chat_log("Widget: Channel '$channel' is accessible as room type: $room_type", 'info');
+            } else {
+                rocket_chat_log("Widget: Channel '$channel' not accessible, falling back to general", 'warning');
+                $channel = 'general'; // Fallback to general
+                $channel_accessible = true;
+                $room_type = 'channel';
+            }
+        }
+        
+        if ($settings['show_debug'] === 'yes') {
+            $debug_output .= '<p><strong>Channel Access:</strong> ' . ($channel_accessible ? 'ALLOWED' : 'DENIED') . '</p>';
+            $debug_output .= '<p><strong>Final Channel:</strong> ' . esc_html($channel) . '</p>';
+            $debug_output .= '<p><strong>Room Type:</strong> ' . esc_html($room_type) . '</p>';
+        }
+
+        // Get user details for login (API instance already created above)
+        $wp_user_id = get_current_user_id();
+
+        // Always get the encrypted password after user creation/management
+        $encrypted_password = get_user_meta($wp_user_id, 'rocket_chat_password', true);
+        if (!$encrypted_password) {
+            rocket_chat_log("Widget: No encrypted password found for user: {$current_user->user_login} after management", 'error');
+            if ($settings['show_debug'] === 'yes') {
+                $debug_output .= '<p style="color: red;">Error: No password found after user management.</p>';
+                echo $debug_output;
+            }
+            
+            echo '<div class="rocket-chat-error" style="background: #fff2f2; border: 1px solid #f5c6cb; border-radius: 8px; padding: 20px; margin: 20px 0; color: #721c24; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;">';
+            echo '<div style="display: flex; align-items: center; margin-bottom: 12px;">';
+            echo '<span style="font-size: 18px; margin-right: 8px;">🔐</span>';
+            echo '<h4 style="margin: 0; font-size: 16px; font-weight: 600;">Authentication Setup Issue</h4>';
+            echo '</div>';
+            echo '<p style="margin: 0 0 12px 0; line-height: 1.5;">There was an issue setting up your chat authentication.</p>';
+            echo '<p style="margin: 0; line-height: 1.5; font-weight: 500;">Please refresh the page and try again. If the problem persists, contact Triple Point Trading support for assistance.</p>';
+            echo '</div>';
+            return;
+        }
+        rocket_chat_log("Widget: Found encrypted password for user: {$current_user->user_login}", 'info');
+
+        // Login as the Rocket.Chat user using the encrypted password from user meta
+        $login_success = false;
+        $login_token = null;
+        if ($encrypted_password) {
+            rocket_chat_log("Widget: Attempting to log in as user: {$current_user->user_login}", 'info');
+            $login_success = $api->login_as_user($current_user->user_login, $encrypted_password);
+            if ($login_success) {
+                $login_token = $api->get_user_auth_token();
+            }
+        } else {
+            rocket_chat_log("Widget: No encrypted password found for user: {$current_user->user_login}", 'error');
+        }
+        
+        // Extra debug output for login result
+        rocket_chat_log("Widget: login_success value: " . var_export($login_success, true), 'info');
+        rocket_chat_log("Widget: login_token value: " . var_export($login_token, true), 'info');
+        if ($settings['show_debug'] === 'yes') {
+            $debug_output .= '<p><strong>login_success:</strong> ' . esc_html(var_export($login_success, true)) . '</p>';
+            $debug_output .= '<p><strong>login_token:</strong> ' . esc_html(var_export($login_token, true)) . '</p>';
+        }
+        
+        if (!$login_success || !$login_token) {
+            rocket_chat_log("Widget: Failed to log in as user: {$current_user->user_login}", 'error');
+            if ($settings['show_debug'] === 'yes') {
+                $debug_output .= '<p style="color: red;">Error: Unable to log in as chat user.</p>';
+                echo $debug_output;
+            }
+            
+            echo '<div class="rocket-chat-error" style="background: #fff2f2; border: 1px solid #f5c6cb; border-radius: 8px; padding: 20px; margin: 20px 0; color: #721c24; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;">';
+            echo '<div style="display: flex; align-items: center; margin-bottom: 12px;">';
+            echo '<span style="font-size: 18px; margin-right: 8px;">🔐</span>';
+            echo '<h4 style="margin: 0; font-size: 16px; font-weight: 600;">Chat Login Issue</h4>';
+            echo '</div>';
+            echo '<p style="margin: 0 0 12px 0; line-height: 1.5;">There was an issue logging you into the chat system.</p>';
+            echo '<p style="margin: 0; line-height: 1.5; font-weight: 500;">This is usually temporary. Please refresh the page and try again. If the problem persists, contact Triple Point Trading support for assistance.</p>';
+            echo '</div>';
+            return;
+        }
+        rocket_chat_log("Widget: Successfully logged in as user: {$current_user->user_login}", 'info');
+
+        // Use the login token from login_as_user
+        $iframe_id = 'rocket-chat-' . uniqid();
+
+        // Build the iframe HTML with authentication script and loading state
+        $iframe_url = esc_url($host);
+        if ($interface_mode === 'full') {
+            $iframe_url .= '/home?layout=embedded';
+        } else {
+            // Use correct endpoint based on room type
+            if ($room_type === 'group') {
+                $iframe_url .= '/group/' . $channel . '?layout=embedded';
+            } else {
+                $iframe_url .= '/channel/' . $channel . '?layout=embedded';
+            }
+        }
+        
+        // Determine initial visibility based on stream integration setting
+        $initial_display = '';
+        $server_streams_live = false;
+        if ($settings['check_stream_status'] === 'yes') {
+            // NEW: Use the clean stream integration system
+            if (function_exists('rocket_chat_stream_is_live')) {
+                $server_streams_live = rocket_chat_stream_is_live();
+                rocket_chat_log("💬 ELEMENTOR CHAT: Clean system check - streams live: " . ($server_streams_live ? 'true' : 'false'), 'info');
+            } else {
+                // Fallback: Direct WordPress option check if new system not available
+                // FIX: Use the same option name that ant-media plugin updates
+                $server_streams_live = get_option('amsa_streams_currently_live', false);
+                rocket_chat_log("💬 ELEMENTOR CHAT: Fallback check - streams live: " . ($server_streams_live ? 'true' : 'false'), 'warning');
+            }
             
             // Start hidden if no streams are live
             if (!$server_streams_live) {
@@ -444,14 +710,20 @@ HTML,
                 const containerEl = document.getElementById("%s-container");
                 
                 function showChat(reason) {
-                    console.log("💬 WordPress Heartbeat: SHOWING Elementor chat:", reason);
+                    const timestamp = new Date().toISOString();
+                    
+                    console.log("💬 Chat: SHOWING - " + reason);
+                    
                     if (containerEl && containerEl.style.display === "none") {
                         containerEl.style.display = "block";
                     }
                 }
                 
                 function hideChat(reason) {
-                    console.log("💬 WordPress Heartbeat: HIDING Elementor chat:", reason);
+                    const timestamp = new Date().toISOString();
+                    
+                    console.log("💬 Chat: HIDING - " + reason);
+                    
                     if (containerEl && containerEl.style.display !== "none") {
                         containerEl.style.display = "none";
                     }
@@ -467,6 +739,10 @@ HTML,
                     show: showChat,
                     hide: hideChat
                 });
+                
+                console.log("💬 Logged-in Chat: Real-time updates initialized for " + "%s");
+                console.log("💬 Logged-in Chat: Initial state - container display: " + (containerEl ? containerEl.style.display : "NOT_FOUND"));
+                console.log("💬 Logged-in Chat: Initial state - server_streams_live: ' . ($server_streams_live ? 'true' : 'false') . '");
                 
                 // Initial status check - use WordPress Heartbeat data, NO iframe visibility checks
                 setTimeout(function() {
@@ -498,11 +774,25 @@ HTML,
                     }
                 });
                 
-                console.log("💬 WordPress Heartbeat: Elementor chat integrated with stream monitoring");
+                // Listen for real-time WebSocket events (instant updates)
+                document.addEventListener("amsaStreamStatusChanged", function(event) {
+                    console.log("💬 WebSocket: Elementor chat received real-time status change", event.detail);
+                    if (event.detail && typeof event.detail.isLive !== "undefined") {
+                        if (event.detail.isLive) {
+                            showChat("WebSocket event: stream started");
+                        } else {
+                            hideChat("WebSocket event: stream ended");
+                        }
+                    }
+                });
             })();
             </script>',
-            esc_js($iframe_id),
-            esc_js($iframe_id)
+            esc_js($iframe_id),  // for getElementById("%s-container") 
+            esc_js($iframe_id),  // for showChat Container ID: "%s-container"
+            esc_js($iframe_id),  // for hideChat Container ID: "%s-container"  
+            esc_js($iframe_id),  // for id: "%s-elementor"
+            esc_js($iframe_id),  // for initialized for "%s"
+            esc_js($iframe_id)   // for any other %s placeholder
             );
         }
 
@@ -514,6 +804,24 @@ HTML,
             echo '</div>';
         }
         rocket_chat_log("Widget: Successfully rendered chat for user: {$current_user->user_login}", 'info');
+
+        // Add JavaScript debug output for login status
+        echo '<script>';
+        echo 'console.log("🔍 Rocket Chat Login Debug:");';
+        echo 'console.log("WordPress Login Status:", ' . ($is_logged_in ? 'true' : 'false') . ');';
+        if ($current_user && $current_user->ID) {
+            echo 'console.log("User ID:", ' . $current_user->ID . ');';
+            echo 'console.log("Username:", "' . esc_js($current_user->user_login) . '");';
+            echo 'console.log("Email:", "' . esc_js($current_user->user_email ?: 'NO EMAIL') . '");';
+            echo 'console.log("Display Name:", "' . esc_js($current_user->display_name) . '");';
+            
+            $rocket_chat_user = get_user_meta($current_user->ID, 'rocket_chat_user_id', true);
+            $rocket_chat_password = get_user_meta($current_user->ID, 'rocket_chat_encrypted_password', true);
+            echo 'console.log("Rocket Chat User ID:", "' . esc_js($rocket_chat_user ?: 'NOT SET') . '");';
+            echo 'console.log("Rocket Chat Password:", "' . ($rocket_chat_password ? 'SET' : 'NOT SET') . '");';
+        }
+        echo 'console.log("Anonymous access path would be taken:", ' . (!$is_logged_in ? 'true' : 'false') . ');';
+        echo '</script>';
     }
 }
 Plugin::instance()->widgets_manager->register_widget_type(new Rocket_Chat_Embed_Widget());

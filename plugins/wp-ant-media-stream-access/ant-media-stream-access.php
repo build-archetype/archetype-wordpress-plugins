@@ -3,7 +3,7 @@
  * Plugin Name: Ant Media Stream Access
  * Plugin URI: https://archetype.services
  * Description: Advanced stream access control with JWT authentication, tier-based routing, iframe embedding, and real-time chat integration for Ant Media Server.
- * Version: 2.0.57
+ * Version: 2.0.58
  * Author: Archetype Services
  * Author URI: https://archetype.services
  * Text Domain: ant-media-stream-access
@@ -33,8 +33,7 @@ require_once AMSA_PLUGIN_DIR . 'includes/stream-player.php';
 require_once AMSA_PLUGIN_DIR . 'includes/analytics.php';
 require_once AMSA_PLUGIN_DIR . 'includes/settings.php';
 require_once AMSA_PLUGIN_DIR . 'includes/shortcode.php';
-require_once AMSA_PLUGIN_DIR . 'includes/wordpress-heartbeat.php';
-require_once AMSA_PLUGIN_DIR . 'includes/websocket-integration.php';
+require_once AMSA_PLUGIN_DIR . 'includes/stream-sync.php';
 
 // Safety check for critical functions to prevent fatal errors
 if (!function_exists('ant_media_log')) {
@@ -625,3 +624,11 @@ function amsa_handle_offline_message_change($stream_id, $user_id, $action) {
     
     ant_media_log("🎬 OFFLINE MESSAGE: {$stream_id} action '{$action}' -> setting streams_live to " . ($is_live ? 'TRUE' : 'FALSE'), 'info');
 } 
+
+// Initialize StreamSync system for real-time stream monitoring
+add_action('init', function() {
+    if (class_exists('AMSA_StreamSync')) {
+        AMSA_StreamSync::get_instance();
+        ant_media_log("🔄 StreamSync: Real-time monitoring system initialized", 'info');
+    }
+}); 

@@ -3,7 +3,7 @@
  * Plugin Name: Simple Video Library
  * Plugin URI: https://archetype.services
  * Description: A simple, modern video library system for WordPress with DigitalOcean Spaces integration.
- * Version: 2.1.1
+ * Version: 2.1.2
  * Author: Archetype Services
  * Author URI: https://archetype.services
  * Text Domain: video-library

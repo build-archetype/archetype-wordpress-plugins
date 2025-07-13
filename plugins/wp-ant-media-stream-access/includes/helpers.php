@@ -330,44 +330,22 @@ function check_ant_media_stream_status($stream_id, $server_url = null, $app_name
         $status = $data['status'];
         ant_media_log("🎯 API: Stream {$stream_id} status: '{$status}'", 'info');
         
-        // EXPANDED: Check for ALL possible "live" status values from Ant Media Server
+        // CLEAN LOGIC: Only trust the status field from Ant Media Server
+        // The status field is the authoritative source of truth
         $live_statuses = [
             'broadcasting', 'live', 'playing', 'active', 'started', 
             'publish_started', 'stream_started', 'online', 'ready',
-            'created', 'publishing' // Some streams show 'created' when live
+            'created', 'publishing'
         ];
         $is_live = in_array(strtolower($status), $live_statuses);
         
-        // BACKUP CHECK: If status seems offline but we have other indicators, check them
-        if (!$is_live) {
-            // Check if stream has active viewers or bitrate (indicates it's actually live)
-            $has_viewers = isset($data['hlsViewerCount']) && $data['hlsViewerCount'] > 0;
-            $has_webrtc_viewers = isset($data['webRTCViewerCount']) && $data['webRTCViewerCount'] > 0; 
-            $has_bitrate = isset($data['bitrate']) && $data['bitrate'] > 0;
-            $has_speed = isset($data['speed']) && $data['speed'] > 0;
-            
-            if ($has_viewers || $has_webrtc_viewers || $has_bitrate || $has_speed) {
-                ant_media_log("🔄 API: Status '{$status}' seems offline, but has active indicators - assuming LIVE", 'warning');
-                $is_live = true;
-            }
-        }
+        // Log the decision
+        ant_media_log("✅ API: Stream {$stream_id} status '{$status}' = " . ($is_live ? 'LIVE' : 'OFFLINE'), 'info');
         
-        // Log additional useful fields if available
-        if (isset($data['streamId'])) {
-            ant_media_log("🆔 API: Confirmed streamId: {$data['streamId']}", 'debug');
-        }
-        if (isset($data['type'])) {
-            ant_media_log("📺 API: Stream type: {$data['type']}", 'debug');
-        }
-        if (isset($data['bitrate'])) {
-            ant_media_log("📊 API: Bitrate: {$data['bitrate']}", 'debug');
-        }
-        if (isset($data['speed'])) {
-            ant_media_log("⚡ API: Speed: {$data['speed']}", 'debug');
-        }
+        // REMOVED: Old complex logic that checked bitrate/speed/viewers
+        // That logic caused false positives when streams had finished 
+        // but still had leftover metrics data
         
-        ant_media_log("✅ API: Final result for {$stream_id}: " . ($is_live ? 'LIVE' : 'OFFLINE') . 
-                     " (status: '{$status}')", 'info');
         return $is_live;
     } else {
         ant_media_log("⚠️  API: No 'status' field in response for {$stream_id}", 'warning');

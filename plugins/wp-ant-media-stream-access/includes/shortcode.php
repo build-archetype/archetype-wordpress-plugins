@@ -72,38 +72,23 @@ function ant_media_stream_shortcode($atts) {
     // Check if stream is currently live - CRITICAL for live streaming platform
     $is_live = false;
     if (!empty($stream_id)) {
-        // For live streaming platforms: ALWAYS check actual API status on page load
-        // This ensures visitors see live streams immediately, even if they visit mid-stream
+        // Check API but don't aggressively cache on page load
         $is_live = check_ant_media_stream_status($stream_id, $atts['server_url'], $atts['app_name']);
-        ant_media_log("🔴 LIVE CHECK: Stream {$stream_id} API status: " . ($is_live ? 'LIVE' : 'OFFLINE'), 'info');
+        ant_media_log("🔴 LIVE CHECK: Stream {$stream_id} page load status: " . ($is_live ? 'LIVE' : 'OFFLINE'), 'info');
         
-        // FORCE CONSOLE DEBUG - Add JavaScript to show API result in browser console
+        // FORCE CONSOLE DEBUG - Add JavaScript to show result in browser console
         add_action('wp_footer', function() use ($stream_id, $is_live) {
-            echo "<script>console.warn('🚨 API DEBUG: Stream {$stream_id} returned " . ($is_live ? 'LIVE' : 'OFFLINE') . "');</script>";
+            echo "<script>console.warn('🚨 STREAM DEBUG: Stream {$stream_id} returned " . ($is_live ? 'LIVE' : 'OFFLINE') . "');</script>";
         });
         
-        // Update the recent streams transient for chat integration
-        $recent_streams = get_transient('ant_media_recent_streams');
-        if (!is_array($recent_streams)) {
-            $recent_streams = [];
+        // Only update WordPress option if stream is LIVE - don't override with false positives
+        if ($is_live) {
+            update_option('amsa_streams_currently_live', true);
+            ant_media_log("🔴 PAGE LOAD: Stream is LIVE - updated amsa_streams_currently_live to TRUE", 'info');
+        } else {
+            // Don't set to false on page load - let real-time detection handle it
+            ant_media_log("🔴 PAGE LOAD: Stream appears offline - letting real-time detection handle status", 'info');
         }
-        
-        // Update this stream's status
-        $recent_streams[$stream_id] = $is_live;
-        
-        // Clean up old entries (keep only last 10 streams)
-        if (count($recent_streams) > 10) {
-            $recent_streams = array_slice($recent_streams, -10, null, true);
-        }
-        
-        // Store for 5 minutes
-        set_transient('ant_media_recent_streams', $recent_streams, 300);
-        
-        // CRITICAL: Update shared WordPress option immediately so chat plugin gets correct state
-        $any_streams_live = in_array(true, $recent_streams, true);
-        update_option('amsa_streams_currently_live', $any_streams_live);
-        
-        ant_media_log("🔴 PAGE LOAD: Updated amsa_streams_currently_live to " . ($any_streams_live ? 'TRUE' : 'FALSE') . " based on API check", 'info');
     }
     
     ob_start();
@@ -146,15 +131,113 @@ function ant_media_stream_shortcode($atts) {
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        antMediaInitPlayer('<?php echo esc_js($player_id); ?>', {
+        const playerId = '<?php echo esc_js($player_id); ?>';
+        const iframe = document.getElementById(playerId + '-iframe');
+        const offlineDiv = document.getElementById(playerId + '-offline');
+        
+        // Initialize player
+        antMediaInitPlayer(playerId, {
             streamId: '<?php echo esc_js($stream_id); ?>',
             serverUrl: '<?php echo esc_js($atts['server_url']); ?>',
             appName: '<?php echo esc_js($atts['app_name']); ?>',
             isLive: <?php echo $is_live ? 'true' : 'false'; ?>
         });
 
+        // REAL-TIME STREAM PLAYER UPDATES - Same as chat responsiveness
+        function updateStreamPlayer(isLive, source) {
+            const timestamp = new Date().toISOString();
+            
+            // COMPREHENSIVE LOGGING - Show all details
+            console.log("🎥 [" + timestamp + "] Stream Player: Status changed to " + (isLive ? "LIVE" : "OFFLINE"));
+            console.log("🎥 [" + timestamp + "] Stream Player: Triggered by: " + source);
+            console.log("🎥 [" + timestamp + "] Stream Player: Stream ID: <?php echo esc_js($stream_id); ?>");
+            console.log("🎥 [" + timestamp + "] Stream Player: Player ID: " + playerId);
+            
+            if (isLive) {
+                // Show stream, hide offline message
+                if (iframe) {
+                    iframe.style.display = 'block';
+                    console.log("🎥 [" + timestamp + "] Stream Player: ✅ SHOWING iframe element");
+                } else {
+                    console.error("🎥 [" + timestamp + "] Stream Player: ❌ iframe element not found!");
+                }
+                
+                if (offlineDiv) {
+                    offlineDiv.style.display = 'none';
+                    console.log("🎥 [" + timestamp + "] Stream Player: ✅ HIDING offline message");
+                } else {
+                    console.error("🎥 [" + timestamp + "] Stream Player: ❌ offline div element not found!");
+                }
+                
+                // Log DOM state
+                console.log("🎥 [" + timestamp + "] Stream Player: iframe.style.display = " + (iframe ? iframe.style.display : "NOT_FOUND"));
+                console.log("🎥 [" + timestamp + "] Stream Player: offlineDiv.style.display = " + (offlineDiv ? offlineDiv.style.display : "NOT_FOUND"));
+                
+            } else {
+                // Hide stream, show offline message
+                if (iframe) {
+                    iframe.style.display = 'none';
+                    console.log("🎥 [" + timestamp + "] Stream Player: ✅ HIDING iframe element");
+                } else {
+                    console.error("🎥 [" + timestamp + "] Stream Player: ❌ iframe element not found!");
+                }
+                
+                if (offlineDiv) {
+                    offlineDiv.style.display = 'flex';
+                    console.log("🎥 [" + timestamp + "] Stream Player: ✅ SHOWING offline message");
+                } else {
+                    console.error("🎥 [" + timestamp + "] Stream Player: ❌ offline div element not found!");
+                }
+                
+                // Log DOM state
+                console.log("🎥 [" + timestamp + "] Stream Player: iframe.style.display = " + (iframe ? iframe.style.display : "NOT_FOUND"));
+                console.log("🎥 [" + timestamp + "] Stream Player: offlineDiv.style.display = " + (offlineDiv ? offlineDiv.style.display : "NOT_FOUND"));
+            }
+            
+            // Log additional debug info
+            console.log("🎥 [" + timestamp + "] Stream Player: Container element exists: " + (document.getElementById(playerId + '-container') ? "YES" : "NO"));
+            console.log("🎥 [" + timestamp + "] Stream Player: Page visibility: " + document.visibilityState);
+            console.log("🎥 [" + timestamp + "] Stream Player: Window focused: " + document.hasFocus());
+        }
+
+        // Listen for the same events as the chat system
+        document.addEventListener('amsaStreamStatusChanged', function(event) {
+            console.log('🎥 Stream Player: Received amsaStreamStatusChanged event:', event.detail);
+            updateStreamPlayer(event.detail.isLive, 'amsaStreamStatusChanged event');
+        });
+
+        // Listen for jQuery events (same as Elementor chat)
+        jQuery(document).on('amsa-stream-status-update', function(event, statusData) {
+            console.log('🎥 Stream Player: Received amsa-stream-status-update event:', statusData);
+            if (statusData && typeof statusData.any_live !== 'undefined') {
+                updateStreamPlayer(statusData.any_live, 'WordPress Heartbeat event');
+            }
+        });
+
+        // Register with global update system (same as chat containers)
+        if (!window.streamPlayerContainers) {
+            window.streamPlayerContainers = [];
+        }
+        window.streamPlayerContainers.push({
+            id: playerId + '-stream-player',
+            element: iframe,
+            update: updateStreamPlayer,
+            show: function(reason) { 
+                console.log("🎥 Stream Player: show() called with reason: " + reason);
+                updateStreamPlayer(true, reason); 
+            },
+            hide: function(reason) { 
+                console.log("🎥 Stream Player: hide() called with reason: " + reason);
+                updateStreamPlayer(false, reason); 
+            }
+        });
+
+        console.log('🎥 Stream Player: Real-time updates initialized for', playerId);
+        console.log('🎥 Stream Player: Initial state - iframe display:', iframe ? iframe.style.display : 'NOT_FOUND');
+        console.log('🎥 Stream Player: Initial state - offline display:', offlineDiv ? offlineDiv.style.display : 'NOT_FOUND');
+        console.log('🎥 Stream Player: Initial state - is_live from PHP:', <?php echo $is_live ? 'true' : 'false'; ?>);
+
         // FALLBACK: Monitor iframe for actual player events as backup detection
-        const iframe = document.getElementById('<?php echo esc_js($player_id); ?>-iframe');
         if (iframe) {
             let playerEventDetected = false;
             let statusCheckTimer = null;
@@ -642,30 +725,11 @@ function ant_media_add_scripts() {
         
         // Manual cache reset function (available in browser console)
         window.clearStreamCache = function() {
-            console.warn('🧹 MANUALLY clearing stream cache...');
-            
-            if (typeof antMediaAjax === 'undefined') {
-                console.error('❌ antMediaAjax not available for cache reset');
-                return;
-            }
-            
-            // Get all streams on page for re-checking
-            const streamsToCheck = [];
-            Object.keys(window.antMediaPlayers || {}).forEach(function(playerId) {
-                const container = document.getElementById(playerId + '-container');
-                if (container) {
-                    streamsToCheck.push({
-                        stream_id: container.dataset.streamId,
-                        server_url: container.dataset.serverUrl,
-                        app_name: container.dataset.appName
-                    });
-                }
-            });
+            console.warn('🧹 MANUAL: Clearing stream cache...');
             
             const formData = new FormData();
             formData.append('action', 'amsa_reset_stream_cache');
-            formData.append('nonce', antMediaAjax.nonce);
-            formData.append('streams', JSON.stringify(streamsToCheck));
+            formData.append('nonce', '<?php echo wp_create_nonce("amsa_nonce"); ?>');
             
             fetch(antMediaAjax.ajaxurl, {
                 method: 'POST',
@@ -685,24 +749,10 @@ function ant_media_add_scripts() {
             });
         };
         
-        // Initial status check on page load - use actual stream status, not iframe visibility
-        setTimeout(function() {
-            console.log('WordPress Heartbeat: Checking initial stream status for', '<?php echo esc_js($stream_id); ?>');
-            // Only update chat visibility if we know the stream is actually live from server
-            if (<?php echo $is_live ? 'true' : 'false'; ?>) {
-                console.log('WordPress Heartbeat: Stream confirmed live by server, updating chat');
-                if (typeof window.updateChatVisibility === 'function') {
-                    window.updateChatVisibility(true);
-                }
-            } else {
-                console.log('WordPress Heartbeat: Stream confirmed offline by server, hiding chat');
-                if (typeof window.updateChatVisibility === 'function') {
-                    window.updateChatVisibility(false);
-                }
-            }
-        }, 2000);
+        // REMOVED: Stream-specific JavaScript that was causing undefined variable errors
+        // Stream-specific initialization is now handled in the shortcode function itself
         
-        console.log('WordPress Heartbeat: Player initialized, waiting for heartbeat updates...');
+        console.log('WordPress Heartbeat: Global player functions initialized');
     };
     
     // Add a visible cache reset button for debugging (only show if URL has debug=1)
