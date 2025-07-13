@@ -101,6 +101,47 @@ function video_library_modern_shortcode($atts) {
                 <span class="video-count-label">videos</span>
             </div>
         </div>
+        
+        <!-- Initialize Search Right After Controls -->
+        <script>
+                 console.log('🔍 Search script loading right after controls...');
+         console.log('🔍 Library ID from inline script:', '<?php echo esc_js($library_id); ?>');
+         console.log('🔍 Current HTML structure check:');
+         console.log('🔍 - Total inputs on page:', document.querySelectorAll('input').length);
+         console.log('🔍 - Video search inputs:', document.querySelectorAll('.video-search-input').length);
+         console.log('🔍 - Elements with data-video-url:', document.querySelectorAll('[data-video-url]').length);
+        
+                 // Try to initialize search immediately
+         setTimeout(() => {
+             console.log('🔍 Immediate search initialization attempt...');
+             const searchInput = document.querySelector('.video-search-input');
+             console.log('🔍 Search input found immediately:', !!searchInput);
+             if (searchInput) {
+                 console.log('🔍 Search input element:', searchInput);
+                 console.log('🔍 Search input data-library-id:', searchInput.getAttribute('data-library-id'));
+                 
+                 // Add a simple test event listener
+                 searchInput.addEventListener('input', function(e) {
+                     console.log('🔍 SEARCH INPUT DETECTED:', e.target.value);
+                     
+                     // Simple search test - hide/show all video items
+                     const searchTerm = e.target.value.toLowerCase();
+                     const videoItems = document.querySelectorAll('[data-video-url]');
+                     console.log('🔍 Found video items:', videoItems.length);
+                     
+                     videoItems.forEach((item, index) => {
+                         const title = (item.getAttribute('data-video-title') || '').toLowerCase();
+                         const shouldShow = !searchTerm || title.includes(searchTerm);
+                         item.style.display = shouldShow ? '' : 'none';
+                         console.log(`🔍 Video ${index}: "${title}" - ${shouldShow ? 'SHOW' : 'HIDE'}`);
+                     });
+                 });
+                 
+                 console.log('🔍 Simple search listener attached!');
+             }
+         }, 100);
+        </script>
+        
         <?php endif; ?>
         
         <!-- Video Display Area -->
@@ -144,200 +185,8 @@ function video_library_modern_shortcode($atts) {
             
             <!-- Video Switching JavaScript -->
             <script>
-            // FORCE Video.js initialization - multiple attempts
-            function forceInitVideoPlayer() {
-                console.log('🔥 FORCE: Attempting video player initialization...');
-                
-                // Find the video element
-                const videoElement = document.querySelector('.video-js');
-                console.log('🔥 Video element found:', !!videoElement, videoElement?.id);
-                console.log('🔥 Video.js library loaded:', typeof videojs !== 'undefined');
-                
-                if (videoElement && typeof videojs !== 'undefined' && !window.mainVideoPlayer) {
-                    try {
-                        console.log('🔥 Creating Video.js player for:', videoElement.id);
-                        
-                        window.mainVideoPlayer = videojs(videoElement.id, {
-                            fluid: false,
-                            responsive: false,
-                            fill: true,
-                            aspectRatio: '16:9'
-                        });
-                        
-                        console.log('✅ SUCCESS: Video.js player created:', window.mainVideoPlayer);
-                        
-                        if (window.mainVideoPlayer.ready) {
-                            window.mainVideoPlayer.ready(function() {
-                                console.log('✅ SUCCESS: Video.js player ready');
-                                this.dimensions('100%', '100%');
-                            });
-                        }
-                        
-                        return true;
-                    } catch (error) {
-                        console.error('❌ FAILED: Video.js initialization error:', error);
-                        return false;
-                    }
-                } else {
-                    console.error('❌ FAILED: Missing requirements - element:', !!videoElement, 'videojs:', typeof videojs !== 'undefined', 'already exists:', !!window.mainVideoPlayer);
-                    return false;
-                }
-            }
-            
-            // Try initialization multiple times
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('🔥 DOM loaded - starting video player initialization...');
-                
-                setTimeout(() => forceInitVideoPlayer(), 100);
-                setTimeout(() => forceInitVideoPlayer(), 500);
-                setTimeout(() => forceInitVideoPlayer(), 1000);
-                setTimeout(() => forceInitVideoPlayer(), 2000);
-            });
-            
-            window.addEventListener('load', function() {
-                console.log('🔥 Window loaded - trying video player initialization...');
-                setTimeout(() => forceInitVideoPlayer(), 100);
-                setTimeout(() => forceInitVideoPlayer(), 1000);
-            });
-            
-            // Switch video function for sidebar clicks
-            function switchVideo(element) {
-                console.log('🎬 switchVideo called with element:', element);
-                
-                const videoUrl = element.getAttribute('data-video-url');
-                const videoTitle = element.getAttribute('data-video-title');
-                const videoDescription = element.getAttribute('data-video-description');
-                const videoCategory = element.getAttribute('data-video-category');
-                
-                console.log('🎬 Video data:', { videoUrl, videoTitle, videoDescription, videoCategory });
-                console.log('🎬 Main video player:', window.mainVideoPlayer);
-                
-                if (!videoUrl) {
-                    console.error('❌ No video URL found in data attributes');
-                    return;
-                }
-                
-                if (!window.mainVideoPlayer) {
-                    console.error('❌ Video player not found. EMERGENCY INITIALIZATION...');
-                    
-                    // Debug current state
-                    console.log('🔍 Debug: Video elements found:', document.querySelectorAll('video').length);
-                    console.log('🔍 Debug: Video.js elements found:', document.querySelectorAll('.video-js').length);
-                    console.log('🔍 Debug: Video.js library loaded:', typeof videojs !== 'undefined');
-                    
-                    // Try to find and initialize the video player
-                    const videoElement = document.querySelector('.video-js');
-                    console.log('🔍 Found video element:', videoElement, videoElement?.id);
-                    
-                    if (videoElement && typeof videojs !== 'undefined') {
-                        try {
-                            console.log('🚨 EMERGENCY: Creating Video.js player for:', videoElement.id);
-                            window.mainVideoPlayer = videojs(videoElement.id, {
-                                fluid: false,
-                                responsive: false,
-                                fill: true,
-                                aspectRatio: '16:9'
-                            });
-                            console.log('✅ EMERGENCY: Video.js player created:', window.mainVideoPlayer);
-                            
-                            // Now try the switch again
-                            switchVideo(element);
-                            return;
-                        } catch (error) {
-                            console.error('❌ EMERGENCY: Video.js initialization failed:', error);
-                        }
-                    } else {
-                        console.error('❌ EMERGENCY: Cannot initialize - element:', !!videoElement, 'videojs:', typeof videojs !== 'undefined');
-                    }
-                    
-                    // If emergency init failed, try waiting
-                    setTimeout(() => {
-                        if (window.mainVideoPlayer) {
-                            switchVideo(element);
-                        } else {
-                            console.error('❌ Video player STILL not found after emergency attempts');
-                        }
-                    }, 2000);
-                    return;
-                }
-                
-                try {
-                    // Update the video source - back to simple working version
-                    window.mainVideoPlayer.src({
-                        src: videoUrl,
-                        type: 'video/mp4'
-                    });
-                    
-                    console.log('🎬 Setting video source to:', videoUrl);
-                    
-                    // Update the video title in the info panel
-                    const titleElement = document.querySelector('.video-section-container h1');
-                    if (titleElement) {
-                        titleElement.textContent = videoTitle;
-                    }
-                    
-                    // Update the category badge
-                    const categoryElement = document.querySelector('.video-section-container .bg-gradient-to-r');
-                    if (categoryElement) {
-                        categoryElement.textContent = videoCategory;
-                    }
-                    
-                    // Update the description
-                    const descriptionElement = document.querySelector('.video-section-container .text-gray-700 p');
-                    if (descriptionElement) {
-                        descriptionElement.textContent = videoDescription || "A video about " + videoTitle;
-                    }
-                    
-                    // Update active state in sidebar
-                    const allSidebarItems = document.querySelectorAll('#up-next-container-<?php echo esc_attr($library_id); ?> > div[data-video-url]');
-                    allSidebarItems.forEach(item => {
-                        item.classList.remove('bg-blue-50', 'border-blue-200');
-                        item.classList.add('hover:bg-gray-50');
-                    });
-                    
-                    // Add active state to clicked item
-                    element.classList.remove('hover:bg-gray-50');
-                    element.classList.add('bg-blue-50', 'border-blue-200');
-                    
-                    // Load the video
-                    window.mainVideoPlayer.load();
-                    
-                    console.log('✅ Successfully switched video to:', videoTitle);
-                } catch (error) {
-                    console.error('❌ Error switching video:', error);
-                }
-            }
-            
-            // Initialize video switching on page load
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('🎬 Video switching initialized');
-                
-                // Wait for video player to be ready
-                setTimeout(() => {
-                    console.log('🎬 Checking for video player:', window.mainVideoPlayer);
-                    
-                    // Add click handlers to sidebar videos
-                    const sidebarVideos = document.querySelectorAll('#up-next-container-<?php echo esc_attr($library_id); ?> > div[data-video-url]');
-                    console.log('🎬 Found sidebar videos:', sidebarVideos.length);
-                    
-                    sidebarVideos.forEach((video, index) => {
-                        console.log(`🎬 Video ${index}:`, video.getAttribute('data-video-url'));
-                        video.addEventListener('click', function() {
-                            console.log('🎬 Video clicked:', this);
-                            switchVideo(this);
-                        });
-                    });
-                }, 500);
-            });
-            
-            // Also try to initialize after window load
-            window.addEventListener('load', function() {
-                setTimeout(() => {
-                    if (!window.mainVideoPlayer) {
-                        console.log('🎬 Video player still not found after window load');
-                    }
-                }, 1000);
-            });
+
+
             </script>
             
             <?php elseif ($atts['layout'] === 'gallery' && !empty($videos)): ?>
@@ -393,6 +242,238 @@ function video_library_modern_shortcode($atts) {
         
     </div>
     
+    <!-- Global Video Player Functionality -->
+    <script>
+    // Global video player and switching functionality
+    window.currentVideoPlayer = null;
+    window.currentLayout = '<?php echo esc_js($atts['layout']); ?>';
+    
+    // Global switch video function that works for all layouts
+    function switchVideo(element) {
+        const videoUrl = element.getAttribute('data-video-url');
+        const videoTitle = element.getAttribute('data-video-title');
+        const videoDescription = element.getAttribute('data-video-description');
+        const videoCategory = element.getAttribute('data-video-category');
+        
+        if (!videoUrl) {
+            console.error('No video URL found');
+            return;
+        }
+        
+        if (window.currentLayout === 'tile') {
+            // For tile layout, open video in modal or fullscreen
+            openVideoModal(videoUrl, videoTitle, videoDescription, videoCategory);
+        } else if (window.currentLayout === 'gallery') {
+            // For gallery layout, update the main gallery player
+            updateGalleryPlayer(videoUrl, videoTitle, videoDescription, videoCategory, element);
+        } else if (window.currentLayout === 'tube') {
+            // For tube layout, update the main video player (existing functionality)
+            updateTubePlayer(videoUrl, videoTitle, videoDescription, videoCategory, element);
+        }
+    }
+    
+    // Open video in modal for tile layout
+    function openVideoModal(videoUrl, videoTitle, videoDescription, videoCategory) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('video-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'video-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-screen overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 id="modal-title" class="text-xl font-bold"></h2>
+                        <button onclick="closeVideoModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+                    <div class="aspect-video mb-4">
+                        <video id="modal-video" class="w-full h-full" controls>
+                            <source src="" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    <div class="space-y-2">
+                        <div id="modal-category" class="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"></div>
+                        <p id="modal-description" class="text-gray-600"></p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Update modal content
+        document.getElementById('modal-title').textContent = videoTitle;
+        document.getElementById('modal-category').textContent = videoCategory;
+        document.getElementById('modal-description').textContent = videoDescription;
+        
+        const modalVideo = document.getElementById('modal-video');
+        modalVideo.src = videoUrl;
+        modalVideo.muted = false;
+        modalVideo.volume = 1.0;
+        
+        // Show modal
+        modal.style.display = 'flex';
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+    }
+    
+    // Close video modal
+    function closeVideoModal() {
+        const modal = document.getElementById('video-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            const video = document.getElementById('modal-video');
+            if (video) {
+                video.pause();
+                video.src = '';
+            }
+        }
+        document.body.style.overflow = '';
+    }
+    
+    // Update gallery main player
+    function updateGalleryPlayer(videoUrl, videoTitle, videoDescription, videoCategory, clickedElement) {
+        const galleryPlayer = document.querySelector('.video-player-gallery');
+        if (galleryPlayer) {
+            galleryPlayer.src = videoUrl;
+            galleryPlayer.muted = false;
+            galleryPlayer.volume = 1.0;
+            galleryPlayer.load();
+        }
+        
+        // Update gallery title and info
+        const titleElement = document.querySelector('.gallery-main-title');
+        if (titleElement) {
+            titleElement.textContent = videoTitle;
+        }
+        
+        const categoryElement = document.querySelector('.video-category-badge');
+        if (categoryElement) {
+            categoryElement.textContent = videoCategory;
+        }
+        
+        const descriptionElement = document.querySelector('.gallery-main-description p');
+        if (descriptionElement) {
+            descriptionElement.textContent = videoDescription;
+        }
+        
+        // Update active state in gallery thumbnails if clickedElement is provided
+        if (clickedElement) {
+            const allThumbnails = document.querySelectorAll('.gallery-thumbnail');
+            allThumbnails.forEach(thumb => {
+                thumb.classList.remove('active');
+            });
+            
+            // Add active state to clicked thumbnail
+            if (clickedElement.classList.contains('gallery-thumbnail')) {
+                clickedElement.classList.add('active');
+            }
+        }
+    }
+    
+    // Update tube layout player (existing functionality)
+    function updateTubePlayer(videoUrl, videoTitle, videoDescription, videoCategory, clickedElement) {
+        if (!window.mainVideoPlayer) {
+            // Try to find and initialize the video player
+            const videoElement = document.querySelector('.video-js');
+            if (videoElement && typeof videojs !== 'undefined') {
+                try {
+                    window.mainVideoPlayer = videojs(videoElement.id, {
+                        fluid: false,
+                        responsive: false,
+                        fill: true,
+                        aspectRatio: '16:9'
+                    });
+                    
+                    // Try the update again
+                    setTimeout(() => updateTubePlayer(videoUrl, videoTitle, videoDescription, videoCategory, clickedElement), 100);
+                    return;
+                } catch (error) {
+                    console.error('Emergency Video.js initialization failed:', error);
+                    return;
+                }
+            }
+            
+            console.error('Video player not found');
+            return;
+        }
+        
+        try {
+            // Update the video source
+            window.mainVideoPlayer.src({
+                src: videoUrl,
+                type: 'video/mp4'
+            });
+            
+            // Ensure audio is enabled
+            window.mainVideoPlayer.muted(false);
+            window.mainVideoPlayer.volume(1.0);
+            
+            // Update the video title in the info panel
+            const titleElement = document.querySelector('.video-section-container h1');
+            if (titleElement) {
+                titleElement.textContent = videoTitle;
+            }
+            
+            // Update the category badge
+            const categoryElement = document.querySelector('.video-section-container .bg-gradient-to-r');
+            if (categoryElement) {
+                categoryElement.textContent = videoCategory;
+            }
+            
+            // Update the description
+            const descriptionElement = document.querySelector('.video-section-container .text-gray-700 p');
+            if (descriptionElement) {
+                descriptionElement.textContent = videoDescription || "A video about " + videoTitle;
+            }
+            
+            // Update active state in sidebar if clickedElement is provided
+            if (clickedElement) {
+                const allSidebarItems = document.querySelectorAll('[id*="up-next-container"] > div[data-video-url]');
+                allSidebarItems.forEach(item => {
+                    item.classList.remove('bg-blue-50', 'border-blue-200');
+                    item.classList.add('hover:bg-gray-50');
+                });
+                
+                // Add active state to clicked item
+                clickedElement.classList.remove('hover:bg-gray-50');
+                clickedElement.classList.add('bg-blue-50', 'border-blue-200');
+            }
+            
+            // Load the video
+            window.mainVideoPlayer.load();
+            
+            // Ensure audio is enabled when new video loads
+            window.mainVideoPlayer.one('loadedmetadata', function() {
+                this.muted(false);
+                this.volume(1.0);
+            });
+            
+        } catch (error) {
+            console.error('Error switching video:', error);
+        }
+    }
+    
+    // Initialize video functionality on DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add ESC key handler for modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeVideoModal();
+            }
+        });
+        
+        // Add click outside modal to close
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('video-modal');
+            if (modal && e.target === modal) {
+                closeVideoModal();
+            }
+        });
+    });
+    </script>
+    
     <!-- Professional Styling with Tailwind Utilities -->
     <style>
     @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
@@ -427,6 +508,35 @@ function video_library_modern_shortcode($atts) {
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
+    }
+    
+    /* Video modal styling */
+    #video-modal {
+        z-index: 9999;
+    }
+    
+    #video-modal video {
+        border-radius: 8px;
+        background: #000;
+    }
+    
+    /* Gallery thumbnail active state */
+    .gallery-thumbnail.active {
+        border: 3px solid #3b82f6;
+        transform: scale(1.05);
+    }
+    
+    /* Search debugging */
+    .search-debug {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 1000;
     }
     </style>
     
@@ -2573,6 +2683,231 @@ function video_library_modern_shortcode($atts) {
     };
     </script>
     
+    <!-- Search Functionality -->
+    <script>
+    console.log('🔍 Search script is loading...');
+    
+    // Global debug function for manual testing
+    window.debugVideoSearch = function() {
+        console.log('🔍 Manual search debug triggered');
+        console.log('🔍 All inputs on page:', document.querySelectorAll('input'));
+        console.log('🔍 All elements with data-library-id:', document.querySelectorAll('[data-library-id]'));
+        console.log('🔍 All elements with video-search-input class:', document.querySelectorAll('.video-search-input'));
+        console.log('🔍 Library container:', document.querySelector('#<?php echo esc_js($library_id); ?>'));
+        return initializeSearch();
+    };
+    
+    // Initialize search immediately
+    function initializeSearch() {
+        console.log('🔍 Initializing search functionality...');
+        
+        const libraryId = '<?php echo esc_js($library_id); ?>';
+        console.log('🔍 Library ID:', libraryId);
+        
+        // Try multiple selectors to find the search input
+        let searchInput = document.querySelector(`[data-library-id="${libraryId}"].video-search-input`);
+        if (!searchInput) {
+            searchInput = document.querySelector('.video-search-input');
+            console.log('🔍 Found search input with fallback selector:', !!searchInput);
+        } else {
+            console.log('🔍 Found search input with library ID selector:', !!searchInput);
+        }
+        
+        const clearButton = document.querySelector('.video-search-clear');
+        const videoCountElement = document.querySelector('.video-count');
+        const videoCountLabel = document.querySelector('.video-count-label');
+        
+        console.log('🔍 Elements found:', {
+            searchInput: !!searchInput,
+            clearButton: !!clearButton,
+            videoCountElement: !!videoCountElement,
+            videoCountLabel: !!videoCountLabel
+        });
+        
+        if (!searchInput) {
+            console.error('🔍 Search input not found for library:', libraryId);
+            console.log('🔍 Available inputs:', document.querySelectorAll('input').length);
+            console.log('🔍 Available elements with data-library-id:', document.querySelectorAll('[data-library-id]').length);
+            return false;
+        }
+        
+        // Get all video items based on layout
+        function getAllVideoItems() {
+            const layout = document.querySelector(`#${libraryId}`).getAttribute('data-layout');
+            
+            if (layout === 'tube') {
+                // For tube layout, get sidebar videos (main video doesn't change)
+                return document.querySelectorAll(`#up-next-container-${libraryId} > div[data-video-url]`);
+            } else if (layout === 'tile') {
+                // For tile layout, get all video tiles from the grid
+                return document.querySelectorAll(`#${libraryId} .grid div[data-video-url]`);
+            } else if (layout === 'gallery') {
+                // For gallery layout, get thumbnail items
+                return document.querySelectorAll(`#${libraryId} .gallery-thumbnail[data-video-url]`);
+            }
+            
+            return [];
+        }
+        
+        // Filter videos based on search term
+        function filterVideos(searchTerm) {
+            const videoItems = getAllVideoItems();
+            const layout = document.querySelector(`#${libraryId}`).getAttribute('data-layout');
+            let visibleCount = 0;
+            
+            console.log('Filtering videos:', { 
+                searchTerm, 
+                layout, 
+                videoItemsCount: videoItems.length,
+                libraryId 
+            });
+            
+            searchTerm = searchTerm.toLowerCase().trim();
+            
+            // Handle category filter if it exists
+            const categoryFilter = document.querySelector(`[data-library-id="${libraryId}"].video-category-filter`);
+            const selectedCategory = categoryFilter ? categoryFilter.value.toLowerCase() : '';
+            
+            videoItems.forEach(item => {
+                const title = (item.getAttribute('data-video-title') || '').toLowerCase();
+                const description = (item.getAttribute('data-video-description') || '').toLowerCase();
+                const category = (item.getAttribute('data-video-category') || '').toLowerCase();
+                
+                const searchMatches = !searchTerm || 
+                                     title.includes(searchTerm) || 
+                                     description.includes(searchTerm) ||
+                                     category.includes(searchTerm);
+                
+                const categoryMatches = !selectedCategory || category.includes(selectedCategory);
+                
+                const matches = searchMatches && categoryMatches;
+                
+                if (matches) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            // For tube layout, add 1 for the main video if it matches
+            if (layout === 'tube') {
+                const mainVideoSection = document.querySelector('.video-section-container');
+                if (mainVideoSection) {
+                    const mainTitle = (mainVideoSection.querySelector('h1')?.textContent || '').toLowerCase();
+                    const mainDescription = (mainVideoSection.querySelector('.text-gray-700 p')?.textContent || '').toLowerCase();
+                    const mainCategory = (mainVideoSection.querySelector('.bg-gradient-to-r')?.textContent || '').toLowerCase();
+                    
+                    const mainSearchMatches = !searchTerm || 
+                                             mainTitle.includes(searchTerm) || 
+                                             mainDescription.includes(searchTerm) ||
+                                             mainCategory.includes(searchTerm);
+                    
+                    const mainCategoryMatches = !selectedCategory || mainCategory.includes(selectedCategory);
+                    
+                    if (mainSearchMatches && mainCategoryMatches) {
+                        visibleCount++;
+                    }
+                }
+            }
+            
+            // Update video count
+            if (videoCountElement) {
+                videoCountElement.textContent = visibleCount;
+            }
+            
+            // Update plural/singular
+            if (videoCountLabel) {
+                videoCountLabel.textContent = visibleCount === 1 ? 'video' : 'videos';
+            }
+            
+            // Show/hide clear button
+            if (clearButton) {
+                clearButton.style.display = searchTerm ? 'block' : 'none';
+            }
+            
+            // Show "no results" message for tile layout
+            if (layout === 'tile') {
+                showNoResultsMessage(visibleCount === 0 && searchTerm);
+            }
+        }
+        
+        // Show/hide no results message for tile layout
+        function showNoResultsMessage(show) {
+            let noResultsElement = document.querySelector('.no-search-results');
+            
+            if (show && !noResultsElement) {
+                // Create no results message
+                const gridContainer = document.querySelector('.grid');
+                if (gridContainer) {
+                    noResultsElement = document.createElement('div');
+                    noResultsElement.className = 'no-search-results col-span-full flex flex-col items-center justify-center py-16 text-center';
+                    noResultsElement.innerHTML = `
+                        <div class="text-6xl mb-4">🔍</div>
+                        <h3 class="text-xl font-semibold text-gray-900 mb-2">No Videos Found</h3>
+                        <p class="text-gray-600">No videos match your search criteria.</p>
+                    `;
+                    gridContainer.appendChild(noResultsElement);
+                }
+            } else if (!show && noResultsElement) {
+                noResultsElement.remove();
+            }
+        }
+        
+        // Handle search input
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value;
+            console.log('Search term:', searchTerm);
+            filterVideos(searchTerm);
+        });
+        
+        // Handle clear button
+        if (clearButton) {
+            clearButton.addEventListener('click', function() {
+                searchInput.value = '';
+                filterVideos('');
+                searchInput.focus();
+            });
+        }
+        
+        // Handle category filter changes (if it exists)
+        const categoryFilter = document.querySelector(`[data-library-id="${libraryId}"].video-category-filter`);
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', function() {
+                // When category changes, reapply filters
+                filterVideos(searchInput.value);
+            });
+        }
+        
+        // Initial filter if there's a pre-filled search
+        if (searchInput.value) {
+            console.log('🔍 Pre-filled search value:', searchInput.value);
+            filterVideos(searchInput.value);
+        }
+        
+        console.log('🔍 Search functionality initialized successfully!');
+        return true;
+    }
+    
+    // Try to initialize search on DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🔍 DOM loaded, attempting search initialization...');
+        initializeSearch();
+    });
+    
+    // Also try after a delay in case DOM elements are added dynamically
+    setTimeout(() => {
+        console.log('🔍 Retry search initialization after delay...');
+        initializeSearch();
+    }, 1000);
+    
+    // And try on window load
+    window.addEventListener('load', function() {
+        console.log('🔍 Window loaded, attempting search initialization...');
+        initializeSearch();
+    });
+    </script>
+    
     <?php
     return ob_get_clean();
 }
@@ -2640,7 +2975,9 @@ function render_main_video_player($video, $atts) {
                 controls
                 preload="metadata"
                 poster="<?php echo get_fallback_video_thumbnail(); ?>"
-                data-setup='{}'>
+                muted="false"
+                playsinline
+                data-setup='{"fluid": false, "responsive": false, "fill": true, "muted": false}'>
                 <source src="<?php echo esc_url($video->video_url); ?>" type="video/mp4">
                 <p class="vjs-no-js">
                     To view this video please enable JavaScript, and consider upgrading to a web browser that
@@ -2648,6 +2985,8 @@ function render_main_video_player($video, $atts) {
                 </p>
             </video>
         </div>
+        
+
         
         <!-- Video Information Panel - Compact -->
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
@@ -2705,51 +3044,70 @@ function render_main_video_player($video, $atts) {
     </div>
     
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🎥 Initializing Video.js player for ID:', '<?php echo esc_js($video_id); ?>');
+    // Initialize Video.js player
+    function initVideoPlayer() {
+        const videoElement = document.getElementById('<?php echo esc_js($video_id); ?>');
         
-        // Wait for Video.js to be loaded
-        if (typeof videojs === 'undefined') {
-            console.error('❌ Video.js library not loaded yet, waiting...');
-            setTimeout(function() {
-                initializeVideoPlayer();
-            }, 1000);
-        } else {
-            initializeVideoPlayer();
+        if (!videoElement || typeof videojs === 'undefined') {
+            return false;
         }
         
-        function initializeVideoPlayer() {
-            try {
-                // Initialize Video.js player with proper sizing
-                window.mainVideoPlayer = videojs('<?php echo esc_js($video_id); ?>', {
-                    fluid: false,
-                    responsive: false,
-                    fill: true,
-                    aspectRatio: '16:9'
-                });
-                
-                console.log('✅ Video.js player initialized:', window.mainVideoPlayer);
-                
-                window.mainVideoPlayer.ready(function() {
-                    console.log('✅ Video.js player ready:', this.id());
-                    console.log('🎬 switchVideo function available:', typeof window.switchVideo === 'function');
-                    
-                    // Ensure proper sizing
-                    this.dimensions('100%', '100%');
-                });
-            } catch (error) {
-                console.error('❌ Error initializing Video.js player:', error);
-                
-                // Fallback: try again after a delay
-                setTimeout(function() {
-                    try {
-                        window.mainVideoPlayer = videojs('<?php echo esc_js($video_id); ?>');
-                        console.log('✅ Video.js player initialized on retry:', window.mainVideoPlayer);
-                    } catch (retryError) {
-                        console.error('❌ Video.js player failed on retry:', retryError);
-                    }
-                }, 2000);
+        if (window.mainVideoPlayer) {
+            return true;
+        }
+        
+        try {
+            // Check if Video.js has already initialized this element
+            const existingPlayer = videojs.getPlayer('<?php echo esc_js($video_id); ?>');
+            if (existingPlayer) {
+                window.mainVideoPlayer = existingPlayer;
+                existingPlayer.muted(false);
+                existingPlayer.volume(1.0);
+                return true;
             }
+            
+            // Create new Video.js player
+            window.mainVideoPlayer = videojs('<?php echo esc_js($video_id); ?>', {
+                fluid: false,
+                responsive: false,
+                fill: true,
+                aspectRatio: '16:9',
+                muted: false,
+                preload: 'metadata',
+                controls: true
+            });
+            
+            // Set up player when ready
+            window.mainVideoPlayer.ready(function() {
+                this.muted(false);
+                this.volume(1.0);
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('Video.js initialization failed:', error);
+            return false;
+        }
+    }
+    
+    // Initialize on DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Try immediately
+        if (!initVideoPlayer()) {
+            // Try again after 1 second
+            setTimeout(() => {
+                if (!initVideoPlayer()) {
+                    // Try again after 3 seconds
+                    setTimeout(() => initVideoPlayer(), 3000);
+                }
+            }, 1000);
+        }
+        
+        // Set up HTML5 video element directly
+        const videoElement = document.getElementById('<?php echo esc_js($video_id); ?>');
+        if (videoElement) {
+            videoElement.muted = false;
+            videoElement.volume = 1.0;
         }
     });
     </script>
@@ -2918,8 +3276,10 @@ function render_gallery_main_player($video, $atts) {
                    controls 
                    preload="metadata"
                    playsinline
+                   muted="false"
                    poster="<?php echo !empty($video->video_thumbnail) ? esc_url($video->video_thumbnail) : get_fallback_video_thumbnail(); ?>"
-                   style="width: 100%; height: 100%; object-fit: cover; background: #000;">
+                   style="width: 100%; height: 100%; object-fit: cover; background: #000;"
+                   onloadedmetadata="this.muted = false; this.volume = 1.0; console.log('🔊 Gallery video loaded - audio enabled');">
                 <source src="<?php echo esc_url($video->video_url); ?>" type="video/mp4">
                 <source src="<?php echo esc_url($video->video_url); ?>" type="video/webm">
                 Your browser does not support the video tag.
@@ -2979,8 +3339,10 @@ function render_tube_video_player($video, $atts) {
             class="video-js vjs-default-skin w-full h-full"
             controls
             preload="metadata"
+            muted="false"
+            playsinline
             poster="<?php echo get_fallback_video_thumbnail(); ?>"
-            data-setup='{}'>
+            data-setup='{"muted": false, "fluid": false, "responsive": false, "fill": true}'>
             <source src="<?php echo esc_url($video->video_url); ?>" type="video/mp4">
             <p class="vjs-no-js">
                 To view this video please enable JavaScript, and consider upgrading to a web browser that
@@ -2991,20 +3353,28 @@ function render_tube_video_player($video, $atts) {
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize Video.js player with proper sizing
+        // Initialize Video.js player with proper sizing and audio settings
         window.mainVideoPlayer = videojs('<?php echo esc_js($video_id); ?>', {
             fluid: false,
             responsive: false,
             fill: true,
-            aspectRatio: '16:9'
+            aspectRatio: '16:9',
+            muted: false,
+            preload: 'metadata',
+            playsinline: true,
+            controls: true
         });
         
         window.mainVideoPlayer.ready(function() {
             console.log('Video.js player ready:', this.id());
             console.log('switchVideo function available:', typeof window.switchVideo === 'function');
             
-            // Ensure proper sizing
+            // Ensure proper sizing and audio settings
             this.dimensions('100%', '100%');
+            this.muted(false);
+            this.volume(1.0);
+            
+            console.log('🔊 Tube layout player - audio enabled');
         });
     });
     </script>
