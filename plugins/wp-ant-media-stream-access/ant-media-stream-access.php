@@ -3,7 +3,7 @@
  * Plugin Name: Ant Media Stream Access
  * Plugin URI: https://archetype.services
  * Description: Advanced stream access control with JWT authentication, tier-based routing, iframe embedding, and real-time chat integration for Ant Media Server.
- * Version: 2.0.58
+ * Version: 2.2.0
  * Author: Archetype Services
  * Author URI: https://archetype.services
  * Text Domain: ant-media-stream-access
