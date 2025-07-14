@@ -19,7 +19,7 @@
 if (!defined('ABSPATH')) exit;
 
 // Define plugin constants
-define('AMSA_VERSION', '2.0.62');
+define('AMSA_VERSION', '2.2.0');
 define('AMSA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('AMSA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AMSA_PLUGIN_FILE', __FILE__);
@@ -34,6 +34,7 @@ require_once AMSA_PLUGIN_DIR . 'includes/analytics.php';
 require_once AMSA_PLUGIN_DIR . 'includes/settings.php';
 require_once AMSA_PLUGIN_DIR . 'includes/shortcode.php';
 require_once AMSA_PLUGIN_DIR . 'includes/stream-sync.php';
+require_once AMSA_PLUGIN_DIR . 'includes/webhook-notifications.php';
 
 // Safety check for critical functions to prevent fatal errors
 if (!function_exists('ant_media_log')) {
