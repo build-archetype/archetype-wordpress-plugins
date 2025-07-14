@@ -4,7 +4,7 @@ Tags: streaming, ant media, video, live stream, access control, jwt, rocket chat
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 2.2.0
+Stable tag: 2.3.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,13 +15,14 @@ Secure live stream access control with user tier-based routing and Rocket Chat i
 Ant Media Stream Access provides advanced secure access control for live streams based on user tiers. Perfect for membership sites, educational platforms, and premium content delivery with integrated chat functionality.
 
 **Key Features:**
-* **Real-time Webhook Notifications** - TRUE 0-second stream detection (RECOMMENDED)
+* **Dual Detection System** - Choose between Webhook (0-second) or WordPress Heartbeat (5-second)
+* **WordPress Heartbeat** - Reliable 5-second detection (Default, no setup required)
+* **Webhook Notifications** - Optional 0-second detection (Requires Ant Media Server setup)
 * Multi-tier access control (Platinum, Gold, Silver)
 * JWT token authentication for secure streams
 * WordPress user role and meta integration
 * Rocket Chat integration with stream-based visibility
 * Elementor widgets for easy layout design
-* WordPress Heartbeat fallback monitoring (5-second intervals)
 * Comprehensive debug logging and diagnostics
 
 **Stream Access Control:**

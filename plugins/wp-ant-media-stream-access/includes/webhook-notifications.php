@@ -55,6 +55,15 @@ class AMSA_Webhook_Notifications {
             return;
         }
         
+        // Check if webhook detection is enabled
+        $detection_method = get_option('amsa_detection_method', 'heartbeat');
+        if ($detection_method !== 'webhook') {
+            $this->log_webhook('Webhook received but detection method is set to: ' . $detection_method);
+            http_response_code(200);
+            echo json_encode(['status' => 'disabled', 'detection_method' => $detection_method]);
+            exit;
+        }
+        
         // Get webhook data
         $input = file_get_contents('php://input');
         $data = json_decode($input, true);
@@ -223,47 +232,93 @@ class AMSA_Webhook_Notifications {
      */
     public function add_webhook_settings() {
         add_settings_section(
-            'amsa_webhook_section',
-            'Webhook Notifications (Recommended)',
-            [$this, 'render_webhook_section'],
+            'amsa_detection_section',
+            'Stream Detection Method',
+            [$this, 'render_detection_section'],
             'amsa_settings'
         );
         
         add_settings_field(
-            'amsa_webhook_enabled',
-            'Enable Webhook Notifications',
-            [$this, 'render_webhook_enabled_field'],
+            'amsa_detection_method',
+            'Detection Method',
+            [$this, 'render_detection_method_field'],
             'amsa_settings',
-            'amsa_webhook_section'
+            'amsa_detection_section'
         );
         
+        add_settings_field(
+            'amsa_webhook_enabled',
+            'Webhook Configuration',
+            [$this, 'render_webhook_config_field'],
+            'amsa_settings',
+            'amsa_detection_section'
+        );
+        
+        register_setting('amsa_settings', 'amsa_detection_method');
         register_setting('amsa_settings', 'amsa_webhook_enabled');
     }
     
     /**
-     * Render webhook settings section
+     * Render detection settings section
      */
-    public function render_webhook_section() {
-        $webhook_url = home_url('ant-media-webhook');
-        echo '<p><strong>✅ RECOMMENDED: True 0-second detection using webhooks</strong></p>';
-        echo '<p>Configure your Ant Media Server to call this webhook URL when streams start/stop:</p>';
-        echo '<p><code style="background: #f0f0f0; padding: 5px;">' . esc_url($webhook_url) . '</code></p>';
-        echo '<p><strong>Ant Media Server Configuration:</strong></p>';
-        echo '<pre style="background: #f9f9f9; padding: 10px; border-left: 4px solid #0073aa;">
-# Add to red5-web.properties:
-settings.webhookAuthenticateURL=' . esc_url($webhook_url) . '
-
-# Restart Ant Media Server after configuration
-sudo service antmedia restart</pre>';
+    public function render_detection_section() {
+        echo '<p>Choose how your WordPress site detects stream status changes:</p>';
+        echo '<table class="form-table" style="margin-top: 10px;">';
+        echo '<tr><th><strong>WordPress Heartbeat</strong></th><td>Reliable 5-second detection (Default)</td></tr>';
+        echo '<tr><th><strong>Webhook</strong></th><td>Instant 0-second detection (Requires Ant Media setup)</td></tr>';
+        echo '</table>';
     }
     
     /**
-     * Render webhook enabled field
+     * Render detection method field
      */
-    public function render_webhook_enabled_field() {
-        $enabled = get_option('amsa_webhook_enabled', true);
-        echo '<input type="checkbox" name="amsa_webhook_enabled" value="1" ' . checked($enabled, true, false) . '>';
-        echo '<label>Enable webhook notifications for instant stream detection</label>';
+    public function render_detection_method_field() {
+        $method = get_option('amsa_detection_method', 'heartbeat');
+        
+        echo '<fieldset>';
+        echo '<label style="display: block; margin-bottom: 10px;">';
+        echo '<input type="radio" name="amsa_detection_method" value="heartbeat" ' . checked($method, 'heartbeat', false) . '> ';
+        echo '<strong>WordPress Heartbeat</strong> - 5-second detection (Reliable, no setup needed)';
+        echo '</label>';
+        
+        echo '<label style="display: block;">';
+        echo '<input type="radio" name="amsa_detection_method" value="webhook" ' . checked($method, 'webhook', false) . '> ';
+        echo '<strong>Webhook</strong> - 0-second detection (Requires Ant Media Server configuration)';
+        echo '</label>';
+        echo '</fieldset>';
+    }
+    
+    /**
+     * Render webhook configuration field
+     */
+    public function render_webhook_config_field() {
+        $method = get_option('amsa_detection_method', 'heartbeat');
+        $webhook_url = home_url('ant-media-webhook');
+        
+        echo '<div id="webhook-config" style="' . ($method !== 'webhook' ? 'display: none;' : '') . '">';
+        echo '<p><strong>Webhook URL for Ant Media Server:</strong></p>';
+        echo '<p><code style="background: #f0f0f0; padding: 5px; display: block; margin: 10px 0;">' . esc_url($webhook_url) . '</code></p>';
+        echo '<p><strong>Ant Media Server Configuration:</strong></p>';
+        echo '<pre style="background: #f9f9f9; padding: 10px; border-left: 4px solid #0073aa; font-size: 12px;">
+# Add to red5-web.properties:
+settings.webhookAuthenticateURL=' . esc_url($webhook_url) . '
+
+# Restart Ant Media Server:
+sudo service antmedia restart</pre>';
+        echo '</div>';
+        
+        echo '<script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const radios = document.querySelectorAll(\'input[name="amsa_detection_method"]\');
+            const config = document.getElementById("webhook-config");
+            
+            radios.forEach(radio => {
+                radio.addEventListener("change", function() {
+                    config.style.display = this.value === "webhook" ? "block" : "none";
+                });
+            });
+        });
+        </script>';
     }
     
     /**
@@ -272,7 +327,9 @@ sudo service antmedia restart</pre>';
     public function add_webhook_javascript() {
         if (is_admin()) return;
         
-        if (!get_option('amsa_webhook_enabled', true)) return;
+        // Only load webhook JavaScript if webhook detection is selected
+        $detection_method = get_option('amsa_detection_method', 'heartbeat');
+        if ($detection_method !== 'webhook') return;
         
         ?>
         <script>
